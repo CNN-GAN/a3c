@@ -5,7 +5,7 @@ import sys, os, math
 import numpy as np
 import time
 ## v-rep
-from environment.vrep_plugin import vrep
+from vrep_plugin import vrep
 import pickle as pickle
 
 print ('import env vrep')

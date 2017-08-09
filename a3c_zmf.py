@@ -9,7 +9,7 @@ import shutil
 
 load_model = True
 LOG_DIR = './data/log'
-N_WORKERS = 6 #multiprocessing.cpu_count()
+N_WORKERS = 1 #multiprocessing.cpu_count()
 print ('cpu: ', multiprocessing.cpu_count())
 MAX_GLOBAL_EP = 10000
 MAX_STEP_EP = 100
@@ -153,7 +153,7 @@ class Worker(object):
             ep_r = 0
             step_in_ep = 0
             mean_reward = 0
-            while step_in_ep < MAX_STEP_EP:
+            while True:
                 # if self.name == 'W_0':
                 #     self.env.render()
                 a, prob = self.AC.choose_action(s)
@@ -185,6 +185,7 @@ class Worker(object):
                         buffer_v_target.append(v_s_)
                     buffer_v_target.reverse()
 
+                    print (self.name, "updated", mean_reward, len(buffer_s))
                     buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.array(buffer_a), np.vstack(buffer_v_target)
                     feed_dict = {
                         self.AC.s: buffer_s,
@@ -194,19 +195,15 @@ class Worker(object):
                     self.AC.update_global(feed_dict)
 
                     mean_reward = np.mean(buffer_r)
+
                     buffer_s, buffer_a, buffer_r = [], [], []
                     self.AC.pull_global()
-
-                if done:
-                    break
 
                 s = s_
                 total_step += 1
                 step_in_ep += 1
 
                 saver.save(SESS, './data/model.cptk') 
-
-                print (self.name, "updated", mean_reward)
                 GLOBAL_EP += 1
                 # if self.name == 'W_0':
                 summary = tf.Summary()
@@ -217,6 +214,8 @@ class Worker(object):
                 summary_writer.add_summary(summary, GLOBAL_EP)
                 summary_writer.flush()  
 
+                if done:
+                    break
 
 if __name__ == "__main__":
     SESS = tf.Session()
