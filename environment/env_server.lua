@@ -143,8 +143,6 @@ function sample_obstacle_position(obs_hds, num)
 end
 
 function sample_init(level)
-    print ('level: '..level)
-
     local robot_pos = {}
     local target_pos = {}
     local robot_ori = start_ori
@@ -166,8 +164,23 @@ function sample_init(level)
         return 0
     end
 
+    print ('level: '..level)
+    local max_r = 3
+    if level == 10 then      -- 1 meter around the robot 
+        -- sample initial robot pose
+        print ('in level: '..level)
+        robot_pos[1] = 0
+        robot_pos[2] = 0
+        robot_pos[3] = start_pos[3]
 
-    if level == 1 then      -- 1 meter around the robot 
+        robot_ori[3] = 0
+
+        -- sample initial target pose
+        target_pos[1] = 3
+        target_pos[2] = 0
+        target_pos[3] = 0
+
+    elseif level == 1 then      -- 1 meter around the robot 
         -- sample initial robot pose
         robot_pos[1] = (math.random() - 0.5) * 2
         robot_pos[2] = (math.random() - 0.5) * 2
@@ -182,44 +195,42 @@ function sample_init(level)
 
     elseif level == 2 then      -- 2 meter around the robot
         -- sample initial robot pose
-        robot_pos[1] = (math.random() - 0.5) * 4
-        robot_pos[2] = (math.random() - 0.5) * 4
+        robot_pos[1] = (math.random() - 0.5) * max_r
+        robot_pos[2] = (math.random() - 0.5) * max_r
         robot_pos[3] = start_pos[3]
 
         robot_ori[3] = (math.random() - 0.5) * math.pi
 
         -- sample initial target pose
-        target_pos[1] = (math.random() - 0.5) * 4
-        target_pos[2] = (math.random() - 0.5) * 4
+        target_pos[1] = (math.random() - 0.5) * max_r
+        target_pos[2] = (math.random() - 0.5) * max_r
         target_pos[3] = 0
 
     elseif level == 3 then      -- 2 meter around the robot with few osbtacles
         -- sample initial robot pose
-        robot_pos[1] = (math.random() - 0.5) * 4
-        robot_pos[2] = (math.random() - 0.5) * 4
+        robot_pos[1] = (math.random() - 0.5) * max_r
+        robot_pos[2] = (math.random() - 0.5) * max_r
         robot_pos[3] = start_pos[3]
 
         robot_ori[3] = (math.random() - 0.5) * math.pi
 
         -- sample initial target pose
-        target_pos[1] = (math.random() - 0.5) * 4
-        target_pos[2] = (math.random() - 0.5) * 4
+        target_pos[1] = (math.random() - 0.5) * max_r
+        target_pos[2] = (math.random() - 0.5) * max_r
         target_pos[3] = 0
 
         sample_obstacle_position(obs_hds, #obs_hds/2)
-
-
     else        -- 2 meter around the robot with random obstacle every time
         -- sample initial robot pose
-        robot_pos[1] = (math.random() - 0.5) * 4
-        robot_pos[2] = (math.random() - 0.5) * 4
+        robot_pos[1] = (math.random() - 0.5) * max_r
+        robot_pos[2] = (math.random() - 0.5) * max_r
         robot_pos[3] = start_pos[3]
 
         robot_ori[3] = (math.random() - 0.5) * math.pi
 
         -- sample initial target pose
-        target_pos[1] = (math.random() - 0.5) * 4
-        target_pos[2] = (math.random() - 0.5) * 4
+        target_pos[1] = (math.random() - 0.5) * max_r
+        target_pos[2] = (math.random() - 0.5) * max_r
         target_pos[3] = 0
     
         sample_obstacle_position(obs_hds, #obs_hds)

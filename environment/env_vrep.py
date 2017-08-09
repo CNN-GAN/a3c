@@ -16,21 +16,21 @@ print ('import env vrep')
 action_list = []
 for a in range(-1, 2):
     for b in range(-1, 2):
-        # for c in range(-1, 2):
+        for c in range(-1, 2):
             # for d in range(-1, 2):
             #     for e in range(-1, 2):
-        action = []
-        action.append(a)
-        action.append(b)
-        action.append(0)
-        action.append(0)
-        action.append(0)
-        # print action
-        action_list.append(action)
-        # print action_list
+            action = []
+            action.append(a)
+            action.append(b)
+            action.append(c)
+            action.append(0)
+            action.append(0)
+            # print action
+            action_list.append(action)
+            # print action_list
 
 # print action_list
-observation_space = 2
+observation_space = 182
 action_space = len(action_list)
 
 class Simu_env(Env):
@@ -47,9 +47,9 @@ class Simu_env(Env):
         self.path_used = 1
         self.step_inep = 0
         self.object_num = 0
-        self.game_level = 1
+        self.game_level = 4
         self.succed_time = 0
-        self.pass_ep = 2
+        self.pass_ep = 1
         self.ep_reap_time = 0
 
         self.connect_vrep()
@@ -64,12 +64,12 @@ class Simu_env(Env):
     #    return Discrete(len(action_list))
 
     def convert_state(self, laser_points, current_pose, path):
-        # path = np.asarray(path)
-        # laser_points = np.asarray(laser_points)
-        # state = np.append(laser_points, path)
+        path = np.asarray(path)
+        laser_points = np.asarray(laser_points)
+        state = np.append(laser_points, path)
         
-        state = np.asarray(path)
-        state = state.flatten()
+        # state = np.asarray(path)
+        # state = state.flatten()
         return state
 
     def reset(self):
@@ -126,12 +126,19 @@ class Simu_env(Env):
     def compute_reward(self, action, path_x, path_y, found_pose):
         is_finish = False
         reward = -1
-        # if action[1] == -1:
-        #     reward -= 1
+        if action[1] == -1:
+            reward -= 1
+        if abs(action[0]) == 1:
+            reward -= 0.5
+
+        sum_action = np.sum(np.abs(action))
+        if (sum_action) == 0:
+            reward -= 5
 
         dist = math.sqrt(path_x[-1]*path_x[-1] + path_y[-1]*path_y[-1])
         # dist = path_x[-1]
-        if dist < self.dist_pre:  # when closer to target
+        # print (dist, self.dist_pre)
+        if dist - self.dist_pre < -0.02:  # when closer to target
             reward += 2            # 1
         else:
             reward -= 2            # -3
@@ -180,9 +187,9 @@ class Simu_env(Env):
 
         self.clientID = clientID
         vrep.simxStopSimulation(clientID, vrep.simx_opmode_oneshot)
-        time.sleep(2)
+        time.sleep(1)
         vrep.simxStartSimulation(clientID, vrep.simx_opmode_oneshot)
-        time.sleep(2)
+        time.sleep(1)
 
     def disconnect_vrep(self):
         vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_oneshot)
