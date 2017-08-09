@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 import sys, os, math
-from rllab.envs.base import Env
-from rllab.envs.base import Step
-from sandbox.rocky.tf.spaces import Box, Discrete
 # from rllab.spaces import Box, Discrete
 
 import numpy as np
@@ -16,24 +13,24 @@ print ('import env vrep')
 action_list = []
 for a in range(-1, 2):
     for b in range(-1, 2):
-        for c in range(-1, 2):
+        # for c in range(-1, 2):
             # for d in range(-1, 2):
             #     for e in range(-1, 2):
-            action = []
-            action.append(a)
-            action.append(b)
-            action.append(c)
-            action.append(0)
-            action.append(0)
-            # print action
-            action_list.append(action)
-            # print action_list
+        action = []
+        action.append(a)
+        action.append(b)
+        action.append(0)
+        action.append(0)
+        action.append(0)
+        # print action
+        action_list.append(action)
+        # print action_list
 
 # print action_list
 observation_space = 182
 action_space = len(action_list)
 
-class Simu_env(Env):
+class Simu_env():
     def __init__(self, port_num):
         # super(Vrep_env, self).__init__(port_num)
         # self.action_space = ['l', 'f', 'r', 'h', 'e']
@@ -76,12 +73,12 @@ class Simu_env(Env):
         # print ('reset')
         self.step_inep = 0
 
-        # if self.pass_ep < 0:
-        #     self.ep_reap_time += 1
-        # if self.ep_reap_time > 10:
-        #     self.ep_reap_time = 0
-        #     self.pass_ep = 1
-        self.pass_ep = 1
+        if self.pass_ep < 0:
+            self.ep_reap_time += 1
+        if self.ep_reap_time > 10:
+            self.ep_reap_time = 0
+            self.pass_ep = 1
+
         res, retInts, retFloats, retStrings, retBuffer = self.call_sim_function('rwRobot', 'reset', [self.pass_ep * self.game_level])        
         self.pass_ep = 1
         # res,objs=vrep.simxGetObjects(self.clientID,vrep.sim_handle_all,vrep.simx_opmode_oneshot_wait)
@@ -120,20 +117,20 @@ class Simu_env(Env):
 
         state_ = self.convert_state(laser_points, current_pose, path_f)
 
-        return Step(observation=state_, reward=reward, done=is_finish)
-        # return state_, reward, is_finish, ''
+        # return Step(observation=state_, reward=reward, done=is_finish)
+        return state_, reward, is_finish, ''
 
     def compute_reward(self, action, path_x, path_y, found_pose):
         is_finish = False
         reward = -1
-        if action[1] == -1:
-            reward -= 1
-        if abs(action[0]) == 1:
-            reward -= 0.5
+        # if action[1] == -1:
+        #     reward -= 1
+        # if abs(action[0]) == 1:
+        #     reward -= 0.5
 
-        sum_action = np.sum(np.abs(action))
-        if (sum_action) == 0:
-            reward -= 5
+        # sum_action = np.sum(np.abs(action))
+        # if (sum_action) == 0:
+        #     reward -= 5
 
         dist = math.sqrt(path_x[-1]*path_x[-1] + path_y[-1]*path_y[-1])
         # dist = path_x[-1]
@@ -149,6 +146,8 @@ class Simu_env(Env):
             is_finish = True
             # self.succed_time += 1
             reward += 10            # 9
+            self.ep_reap_time = 0
+            self.pass_ep = 1
             # if self.succed_time > 10:
             #     self.game_level += 1
             #     self.succed_time = 0
@@ -164,11 +163,11 @@ class Simu_env(Env):
             reward -= 10            # -11
             self.pass_ep = -1
 
-        if self.step_inep > 115:
-            is_finish = True 
-            self.succed_time = 0 
-            reward -= 2             # -3
-            self.pass_ep = -1
+        # if self.step_inep > 115:
+        #     is_finish = True 
+        #     self.succed_time = 0 
+        #     reward -= 2             # -3
+        #     self.pass_ep = -1
 
         return reward, is_finish
 

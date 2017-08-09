@@ -13,12 +13,12 @@ N_WORKERS = 6 #multiprocessing.cpu_count()
 print ('cpu: ', multiprocessing.cpu_count())
 MAX_GLOBAL_EP = 10000
 MAX_STEP_EP = 100
-UPDATE_GLOBAL_ITER = 30
+BATCH_SIZE = 2
 GLOBAL_NET_SCOPE = 'Global_Net'
 GAMMA = 0.9
 ENTROPY_BETA = 0.001
-LR_A = 0.0005    # learning rate for actor
-LR_C = 0.0005    # learning rate for critic
+LR_A = 0.001    # learning rate for actor
+LR_C = 0.001    # learning rate for critic
 GLOBAL_EP = 0
 
 N_S = env_vrep.observation_space
@@ -147,12 +147,12 @@ class Worker(object):
     def work(self):
         global GLOBAL_EP
         total_step = 1
-        buffer_s, buffer_a, buffer_r = [], [], []
+        buffer_s, buffer_a, buffer_r, buffer_r_real = [], [], [], []
+        batch_s, batch_a, batch_r, batch_v_real = [], [], [], []
         while not COORD.should_stop() and GLOBAL_EP < MAX_GLOBAL_EP:
             s = self.env.reset()
             ep_r = 0
             step_in_ep = 0
-            mean_reward = 0
             while step_in_ep < MAX_STEP_EP:
                 # if self.name == 'W_0':
                 #     self.env.render()
@@ -173,37 +173,34 @@ class Worker(object):
                 buffer_a.append(a)
                 buffer_r.append(r)
 
-                if total_step % UPDATE_GLOBAL_ITER == 0 or done:
-                    if done:
-                        v_s_ = 0   # terminal
-                    else:
-                        v_s_ = SESS.run(self.AC.v, {self.AC.s: s_[np.newaxis, :]})[0, 0]
-                    
-                    buffer_v_target = []
-                    for r in buffer_r[::-1]:    # reverse buffer r
-                        v_s_ = r + GAMMA * v_s_
-                        buffer_v_target.append(v_s_)
-                    buffer_v_target.reverse()
-
-                    buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.array(buffer_a), np.vstack(buffer_v_target)
-                    feed_dict = {
-                        self.AC.s: buffer_s,
-                        self.AC.a_his: buffer_a,
-                        self.AC.v_target: buffer_v_target,
-                    }
-                    self.AC.update_global(feed_dict)
-
-                    mean_reward = np.mean(buffer_r)
-                    buffer_s, buffer_a, buffer_r = [], [], []
-                    self.AC.pull_global()
-
                 if done:
                     break
-
                 s = s_
                 total_step += 1
                 step_in_ep += 1
 
+            buffer_v_target = self.process_ep(buffer_r)
+
+            batch_v_real.extend(buffer_v_target)
+            batch_s.extend(buffer_s)
+            batch_a.extend(buffer_a)
+            batch_r.extend(buffer_r)
+            buffer_s, buffer_a, buffer_r, buffer_r_real = [], [], [], []
+
+            # print (len(batch_s), len(batch_a), len(batch_v_real))
+            mean_reward = np.mean(batch_r)
+            if (len(batch_s) > BATCH_SIZE):
+                batch_s, batch_a, batch_v_real = np.vstack(batch_s), np.array(batch_a), np.vstack(batch_v_real)
+                feed_dict = {
+                    self.AC.s: batch_s,
+                    self.AC.a_his: batch_a,
+                    self.AC.v_target: batch_v_real,
+                }
+                self.AC.update_global(feed_dict)
+
+                self.AC.pull_global()
+
+                batch_s, batch_a, batch_r, batch_v_real = [], [], [], []
                 saver.save(SESS, './data/model.cptk') 
 
                 print (self.name, "updated", mean_reward)
