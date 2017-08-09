@@ -5,7 +5,7 @@ import sys, os, math
 import numpy as np
 import time
 ## v-rep
-from vrep_plugin import vrep
+from environment.vrep_plugin import vrep
 import pickle as pickle
 
 print ('import env vrep')
@@ -75,10 +75,10 @@ class Simu_env():
 
         if self.pass_ep < 0:
             self.ep_reap_time += 1
-        if self.ep_reap_time > 10:
+        if self.ep_reap_time > 20:
             self.ep_reap_time = 0
             self.pass_ep = 1
-
+        self.pass_ep = 1
         res, retInts, retFloats, retStrings, retBuffer = self.call_sim_function('rwRobot', 'reset', [self.pass_ep * self.game_level])        
         self.pass_ep = 1
         # res,objs=vrep.simxGetObjects(self.clientID,vrep.sim_handle_all,vrep.simx_opmode_oneshot_wait)
@@ -136,16 +136,16 @@ class Simu_env():
         # dist = path_x[-1]
         # print (dist, self.dist_pre)
         if dist - self.dist_pre < -0.02:  # when closer to target
-            reward += 2            # 1
+            reward += 1            # 1
         else:
-            reward -= 2            # -3
+            reward -= 1            # -3
 
         self.dist_pre = dist
 
         if dist < 0.1:              # when reach to the target
             is_finish = True
             # self.succed_time += 1
-            reward += 10            # 9
+            reward += 5            # 9
             self.ep_reap_time = 0
             self.pass_ep = 1
             # if self.succed_time > 10:
@@ -160,7 +160,7 @@ class Simu_env():
         if found_pose == bytearray(b"f"):       # when collision or no pose can be found
             is_finish = True 
             self.succed_time = 0 
-            reward -= 10            # -11
+            reward -= 5            # -11
             self.pass_ep = -1
 
         # if self.step_inep > 115:
