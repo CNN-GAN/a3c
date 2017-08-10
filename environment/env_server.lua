@@ -79,6 +79,7 @@ function create_dummy(pos)
     return hd
 end
 
+
 function remove_dummy()
     for i=1, #path_dummy_list, 1 do
         local object_hd = path_dummy_list[i]
@@ -124,7 +125,7 @@ function sample_obstacle_position(obs_hds, num)
     for i=1, num, 1 do
         obs_pos = simGetObjectPosition(obs_hds[i], -1)
         obs_pos[1] = (math.random()-0.5) * 4
-        obs_pos[2] = (math.random()-0.5) * 3
+        obs_pos[2] = (math.random()-0.5) * 1
 
         if obs_pos[1] > 2.5 then
             obs_pos[1] = 2.5
@@ -156,8 +157,6 @@ function sample_init(level)
 
         simSetObjectQuaternion(robot_hd, -1, pre_ori)
         simSetObjectQuaternion(fake_robot_hd, -1, pre_ori)
-
-        set_joint_positions(joint_hds, start_joints)
 
         -- set target --
         simSetObjectPosition(target_hd, -1, pre_tar_pose)
@@ -219,21 +218,21 @@ function sample_init(level)
         target_pos[2] = (math.random() - 0.5) * max_r
         target_pos[3] = 0
 
-        sample_obstacle_position(obs_hds, #obs_hds/2)
+        -- sample_obstacle_position(obs_hds, #obs_hds/2)
     else        -- 2 meter around the robot with random obstacle every time
         -- sample initial robot pose
         robot_pos[1] = (math.random() - 0.5) * max_r
-        robot_pos[2] = - math.random() - 1.5
+        robot_pos[2] = (math.random() - 0.5)  - 1
         robot_pos[3] = start_pos[3]
 
         robot_ori[3] = (math.random() - 0.5) * math.pi
 
         -- sample initial target pose
-        target_pos[1] = (math.random() - 0.5) * max_r
-        target_pos[2] = math.random() + 1.5
+        target_pos[1] = (math.random() - 0.5)
+        target_pos[2] = (math.random() - 0.5)  + 1
         target_pos[3] = 0
     
-        sample_obstacle_position(obs_hds, #obs_hds)
+        -- sample_obstacle_position(obs_hds, #obs_hds)
     end
 
     -- set robot --
@@ -242,8 +241,6 @@ function sample_init(level)
 
     simSetObjectQuaternion(robot_hd,-1,robot_ori)
     simSetObjectQuaternion(fake_robot_hd,-1,robot_ori)
-
-    set_joint_positions(joint_hds, start_joints)
 
     -- set target --
     simSetObjectPosition(target_hd,-1,target_pos)

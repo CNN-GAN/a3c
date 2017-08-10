@@ -22,8 +22,8 @@ function do_action(robot_hd, joint_hds, action, start_joints)
 
     local current_pos=simGetObjectPosition(robot_hd,-1)
     local current_ori=simGetObjectQuaternion(robot_hd,-1)
-    -- local current_joints = get_joint_positions(joint_hds)
-    current_joints = start_joints
+    current_joints = get_joint_positions(joint_hds)
+    -- current_joints = start_joints
     local h, l = get_current_pose(robot_hd, joint_hds)
 
     local sample_pose = {}
@@ -58,7 +58,7 @@ function do_action(robot_hd, joint_hds, action, start_joints)
         foot_pos[2] = tilt_pos[3] - 0.0444
 
         if foot_pos[2] < 0 then
-            displayInfo('too low '..i..' '..foot_pos[1]..' '..foot_pos[2] )
+            -- displayInfo('too low '..i..' '..foot_pos[1]..' '..foot_pos[2] )
             restore_pose(robot_hd, joint_hds, current_pos, current_ori, current_joints)
             return {h, l}, 'f'
         end
@@ -66,7 +66,7 @@ function do_action(robot_hd, joint_hds, action, start_joints)
         local knee_x, knee_y = get_intersection_point(0, 0, foot_pos[1], foot_pos[2], r0, r1)
 
         if knee_x == -1 or knee_x ~= knee_x then
-            displayInfo('no pose found '..i..' '..foot_pos[1]..' '..foot_pos[2] )
+            -- displayInfo('no pose found '..i..' '..foot_pos[1]..' '..foot_pos[2] )
             restore_pose(robot_hd, joint_hds, current_pos, current_ori, current_joints)
             return {h, l}, 'f'
         end

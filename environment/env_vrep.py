@@ -14,20 +14,20 @@ action_list = []
 for a in range(-1, 2):
     for b in range(-1, 2):
         for c in range(-1, 2):
-            # for d in range(-1, 2):
-            #     for e in range(-1, 2):
-            action = []
-            action.append(a)
-            action.append(b)
-            action.append(c)
-            action.append(0)
-            action.append(0)
-            # print action
-            action_list.append(action)
-            # print action_list
+            for d in range(-1, 2):
+                for e in range(-1, 2):
+                    action = []
+                    action.append(a)
+                    action.append(b)
+                    action.append(c)
+                    action.append(d)
+                    action.append(e)
+                    # print action
+                    action_list.append(action)
+                    # print action_list
 
 # print action_list
-observation_space = 182
+observation_space = 184
 action_space = len(action_list)
 
 class Simu_env():
@@ -64,7 +64,9 @@ class Simu_env():
         path = np.asarray(path)
         laser_points = np.asarray(laser_points)
         state = np.append(laser_points, path)
-        
+        state = np.append(state, current_pose)
+        state = state.flatten()
+
         # state = np.asarray(path)
         # state = state.flatten()
         return state
@@ -109,7 +111,7 @@ class Simu_env():
             return [0, 0], 0, False, 'f'
 
         #compute reward and is_finish
-        reward, is_finish = self.compute_reward(action, path_x, path_y, found_pose)
+        reward, is_finish = self.compute_reward(action, path_x, path_y, found_pose, current_pose)
 
         path_f = []
         sub_path = [path_x[-1], path_y[-1]] # target x, target y (or angle)
@@ -118,12 +120,14 @@ class Simu_env():
         state_ = self.convert_state(laser_points, current_pose, path_f)
 
         # return Step(observation=state_, reward=reward, done=is_finish)
+        print (action, reward, current_pose)
         return state_, reward, is_finish, ''
 
-    def compute_reward(self, action, path_x, path_y, found_pose):
+    def compute_reward(self, action, path_x, path_y, found_pose, current_pose):
         is_finish = False
         reward = -0.5
 
+        reward -= abs(current_pose[0])
         # if abs(action[0]) == 1:
         #     reward -= 0.5
 
@@ -134,6 +138,7 @@ class Simu_env():
         dist = math.sqrt(path_x[-1]*path_x[-1] + path_y[-1]*path_y[-1])
         # dist = path_x[-1]
         # print (dist, self.dist_pre)
+
         diff = self.dist_pre - dist
         reward += diff * 20
         if reward > 0 and action[1] == 1:
@@ -163,7 +168,7 @@ class Simu_env():
         #     reward -= 2             # -3
 
         if found_pose == bytearray(b"f"):       # when collision or no pose can be found
-            # is_finish = True 
+            is_finish = True 
             self.succed_time = 0 
             reward -= 10            # -11
             self.pass_ep = -1
