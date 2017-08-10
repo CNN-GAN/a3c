@@ -4,7 +4,6 @@ require("common_functions")
 
 --------------------------------------------- ompl functions -------------------------------------------------------
 _robot_dim = 2
-_joint_dim = 4
 _collision_hd_1 = nil
 _collision_hd_2 = nil
 _use_validation_callback = false
@@ -19,7 +18,7 @@ _state_dim = 0
 _sample_num     = 0
 _valid_num      = 0
 
-init_statespace=function(robot_hd, joint_hds, start_pose, goal_pose)
+init_statespace=function(robot_hd, start_pose, goal_pose)
     local state_spaces={}
     local min_v = 0
     local max_v = 0
@@ -72,30 +71,13 @@ init_statespace=function(robot_hd, joint_hds, start_pose, goal_pose)
         state_spaces[1]=simExtOMPL_createStateSpace('base_space',sim_ompl_statespacetype_pose3d,robot_hd,min_range,max_range,weight_move)               -- base space        
     end
 
-    for i=1,_joint_dim,1 do
-        if i < 5 then
-            min_v = {-90*math.pi/180}    --{-170*math.pi/180}
-            max_v = {90*math.pi/180}    --{170*math.pi/180}
-            weight = 0
-        elseif i < 9 then
-            min_v = {-90*math.pi/180}    --{-170*math.pi/180}
-            max_v = {90*math.pi/180}    --{170*math.pi/180}
-            weight = 0
-        else 
-            min_v = {-90*math.pi/180}    --{-170*math.pi/180}
-            max_v = {90*math.pi/180}    --{170*math.pi/180}
-            weight = 0
-        end
-        state_spaces[#state_spaces+1]=simExtOMPL_createStateSpace('joint'..i,sim_ompl_statespacetype_joint_position,joint_hds[i],min_v,max_v,weight,robot_hd)
-    end
-
     return state_spaces
 end
 
 
-init_params=function(robot_dim, joint_dim, collision_name1, collision_name2, use_validation_callback, use_sampler_callback)
+init_params=function(robot_dim, collision_name1, collision_name2, use_validation_callback, use_sampler_callback)
+    print(collision_name1)
     set_robot_dim(robot_dim)
-    set_joint_dim(joint_dim)
     set_collision_hd(collision_name1, collision_name2)
     set_use_callback(use_validation_callback)
     _use_sampler_callback = use_sampler_callback
@@ -104,7 +86,6 @@ end
 init_task=function(start_name, task_id)
     local robot_hd       =simGetObjectHandle(start_name)
     local target_hd      =simGetObjectHandle('target')
-    local joint_hds      =get_joint_hds()
 
     local task_hd = simExtOMPL_createTask(task_id)
     -- simExtOMPL_setVerboseLevel(task_hd, 3)
@@ -122,11 +103,9 @@ init_task=function(start_name, task_id)
 
     if _use_sampler_callback then 
         simExtOMPL_setMotionValidationCallback(task_hd, 'motionValidation', 'quick_motionValidation')
-        _callback_joint_hds = joint_hds
         _callback_robot_hd = robot_hd
         _callback_path = _path
         _callback_state_dim = _state_dim
-        _callback_init_config = get_joint_positions(joint_hds, _joint_dim)
 
         pose_gen = Pose_Generator:new()
         pose_gen:init_pose_list()
@@ -142,14 +121,14 @@ init_task=function(start_name, task_id)
     end
 
     -- start pose --
-    local startpose=get_robot_pose(robot_hd, joint_hds, _robot_dim, _joint_dim)
+    local startpose=get_robot_pose(robot_hd, _robot_dim)
     -- target pose --
-    local goalpose=get_robot_pose(target_hd, joint_hds, _robot_dim, _joint_dim)
+    local goalpose=get_robot_pose(target_hd, _robot_dim)
     _state_dim = #startpose
     _callback_start = startpose
     _callback_goal = goalpose
 
-    satat_spaces=init_statespace(robot_hd, joint_hds, startpose, goalpose) -- for sample state
+    satat_spaces=init_statespace(robot_hd, startpose, goalpose) -- for sample state
     simExtOMPL_setStateSpace(task_hd, satat_spaces)
 
     simExtOMPL_setCollisionPairs(task_hd, {_collision_hd_1, _collision_hd_2}) -- collision 
@@ -162,6 +141,40 @@ init_task=function(start_name, task_id)
     -- simExtOMPL_printTaskInfo(task_hd)
     return task_hd, _state_dim
 end
+
+function get_robot_pose(robot_hd, robot_dim)
+    startpos=simGetObjectPosition(robot_hd,-1)
+    startorient=simGetObjectQuaternion(robot_hd,-1)
+
+    local pose={}
+    if robot_dim == 1 then
+        pose[1]=startpos[1] -- x
+        pose[2]=startpos[2] -- y
+    elseif robot_dim == 2 then
+        pose[1]=startpos[1] -- x
+        pose[2]=startpos[2] -- y
+        pose[3]=startorient[3] -- yaw        
+    elseif robot_dim == 3 then
+        pose[1]=startpos[1] -- x
+        pose[2]=startpos[2] -- y
+        pose[3]=startpos[3] -- z
+    elseif robot_dim == 4 then
+        pose[1]=startpos[1] -- x
+        pose[2]=startpos[2] -- y
+        pose[3]=startpos[3] -- z
+        pose[4]=startorient[3] -- yaw
+    elseif robot_dim == 6 then
+        pose[1]=startpos[1] -- x
+        pose[2]=startpos[2] -- y
+        pose[3]=startpos[3] -- y
+        pose[4]=startorient[1] -- row
+        pose[5]=startorient[2] -- pitch
+        pose[6]=startorient[3] -- yaw
+        pose[7]=startorient[4] -- 
+    end
+    -- print ('in get robot pose'..#pose, robot_dim)
+    return pose
+end 
 
 compute_path=function(task_hd, max_time)
     -- forbidThreadSwitches(true)
@@ -179,11 +192,8 @@ set_robot_dim=function(robot_dim)
     _robot_dim = robot_dim
 end
 
-set_joint_dim=function(joint_dim)
-    _joint_dim = joint_dim
-end
-
 set_collision_hd=function(name1, name2)
+    print(name1)
     _collision_hd_1 = simGetCollectionHandle(name1)
     _collision_hd_2 = simGetCollectionHandle(name2)
 end

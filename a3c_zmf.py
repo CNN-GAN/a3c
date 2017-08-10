@@ -2,7 +2,7 @@ import multiprocessing
 import threading
 import tensorflow as tf
 import numpy as np
-from environment import env_vrep
+from environment import env_hlc
 import os
 import shutil
 # import matplotlib.pyplot as plt
@@ -21,8 +21,8 @@ LR_A = 0.005    # learning rate for actor
 LR_C = 0.005    # learning rate for critic
 GLOBAL_EP = 0
 
-N_S = env_vrep.observation_space
-N_A = env_vrep.action_space
+N_S = env_hlc.observation_space
+N_A = env_hlc.action_space
 
 
 class ACNet(object):
@@ -73,11 +73,11 @@ class ACNet(object):
             # l_a = tf.layers.dense(self.s, 16, tf.nn.relu6, kernel_initializer=w_init, name='la')
             self.laser = tf.slice(self.s, [0, 0], [-1, 180])
             self.target = tf.slice(self.s, [0, 180], [-1, 2])
-            self.pose = tf.slice(self.s, [0, 182], [-1, 2])
+
             # process laser
             laser_reshape = tf.reshape(self.laser,shape=[-1, 180, 1]) 
             conv1 = tf.layers.conv1d(   inputs=laser_reshape,
-                                        filters=16,
+                                        filters=32,
                                         kernel_size=3,
                                         padding="valid",
                                         activation=tf.nn.relu6,
@@ -89,7 +89,7 @@ class ACNet(object):
             #                             activation=tf.nn.relu6,
             #                             name = 'laser_conv2')
             conv_flat = tf.contrib.layers.flatten(conv1)
-            conv_fc = tf.layers.dense(inputs=conv_flat, units=64, activation=tf.nn.relu6, name = 'laser_conv_fc')
+            conv_fc = tf.layers.dense(inputs=conv_flat, units=32, activation=tf.nn.relu6, name = 'laser_conv_fc')
 
             # # process laser
             # laser_reshape = tf.reshape(self.laser,shape=[-1, 180]) 
@@ -100,18 +100,15 @@ class ACNet(object):
             # target_fc = tf.layers.dense(inputs=target_reshape, units=16, activation=tf.nn.relu6, name = 'target_fc1')
             # path_fc2 = tf.layers.dense(inputs=path_fc, units=32, activation=tf.nn.relu, name = 'target_fc2')
 
-            pose_reshape = tf.reshape(self.pose,shape=[-1, 2]) 
-
             # concat laser and target
-            concat_feature = tf.concat([conv_fc, target_reshape], 1, name = 'concat_target')
-            concat_feature = tf.concat([concat_feature, pose_reshape], 1, name = 'concat_pose')
-            concat_fc = tf.layers.dense(inputs=concat_feature, units=32, activation=tf.nn.relu, name = 'concat_fc1')
+            concat_feature = tf.concat([conv_fc, target_reshape], 1, name = 'concat')
+            # concat_fc = tf.layers.dense(inputs=concat_feature, units=32, activation=tf.nn.relu, name = 'concat_fc1')
 
         with tf.variable_scope('actor'):
-            l_a = tf.layers.dense(concat_fc, 16, tf.nn.relu6, kernel_initializer=w_init, name='actor_fc')
+            l_a = tf.layers.dense(concat_feature, 16, tf.nn.relu6, kernel_initializer=w_init, name='actor_fc')
             a_prob = tf.layers.dense(l_a, N_A, tf.nn.softmax, kernel_initializer=w_init, name='actor_prob')
         with tf.variable_scope('critic'):
-            l_c = tf.layers.dense(concat_fc, 16, tf.nn.relu6, kernel_initializer=w_init, name='critic_fc')
+            l_c = tf.layers.dense(concat_feature, 16, tf.nn.relu6, kernel_initializer=w_init, name='critic_fc')
             v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='critic_value')  # state value
         return a_prob, v
 
@@ -236,7 +233,7 @@ if __name__ == "__main__":
 
         for i in range(N_WORKERS):
             i_name = 'W_%i' % i   # worker name
-            env = env_vrep.Simu_env(20000 + i)
+            env = env_hlc.Simu_env(20000 + i)
             workers.append(Worker(i_name, env, saver, summary_writer, GLOBAL_AC))
     
     COORD = tf.train.Coordinator()

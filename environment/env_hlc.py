@@ -14,29 +14,22 @@ action_list = []
 for a in range(-1, 2):
     for b in range(-1, 2):
         for c in range(-1, 2):
-            for d in range(-1, 2):
-                for e in range(-1, 2):
-                    action = []
-                    action.append(a)
-                    action.append(b)
-                    action.append(c)
-                    action.append(d)
-                    action.append(e)
-                    # print action
-                    action_list.append(action)
-                    # print action_list
+            action = []
+            action.append(a)
+            action.append(b)
+            action.append(c)
+            action.append(0)
+            action.append(0)
+            action_list.append(action)
+            # print action_list
 
 # print action_list
-observation_space = 184
+observation_space = 182
 action_space = len(action_list)
 
 class Simu_env():
     def __init__(self, port_num):
-        # super(Vrep_env, self).__init__(port_num)
         # self.action_space = ['l', 'f', 'r', 'h', 'e']
-        # self.n_actions = len(self.action_space)
-        # self.n_features = 2
-        # self.title('Vrep_env')
 
         self.port_num = port_num
         self.dist_pre = 100
@@ -60,11 +53,10 @@ class Simu_env():
     #def action_space(self):
     #    return Discrete(len(action_list))
 
-    def convert_state(self, laser_points, current_pose, path):
+    def convert_state(self, laser_points, path):
         path = np.asarray(path)
         laser_points = np.asarray(laser_points)
         state = np.append(laser_points, path)
-        state = np.append(state, current_pose)
         state = state.flatten()
 
         # state = np.asarray(path)
@@ -83,9 +75,6 @@ class Simu_env():
         self.pass_ep = 1
         res, retInts, retFloats, retStrings, retBuffer = self.call_sim_function('rwRobot', 'reset', [self.pass_ep * self.game_level])        
         self.pass_ep = 1
-        # res,objs=vrep.simxGetObjects(self.clientID,vrep.sim_handle_all,vrep.simx_opmode_oneshot_wait)
-        # self.object_num = len(objs)
-        # # print ('object number: ', self.object_num)
 
         state, reward, is_finish, info = self.step([0, 0, 0, 0, 0])
         return state
@@ -97,12 +86,11 @@ class Simu_env():
         # if self.object_num != len(objs):
         #     print('connection failed! ', self.object_num, len(objs))
         #     # return Step(observation=state, reward=0, done=False)
-
         if isinstance(action, np.int32) or isinstance(action, int) or isinstance(action, np.int64):
             action = action_list[action]
 
         res, retInts, current_pose, retStrings, found_pose = self.call_sim_function('rwRobot', 'step', action)
-
+        # print (action, current_pose)
         laser_points = self.get_laser_points()
         path_x, path_y = self.get_global_path()  # the target position is located at the end of the list
 
@@ -111,23 +99,20 @@ class Simu_env():
             return [0, 0], 0, False, 'f'
 
         #compute reward and is_finish
-        reward, is_finish = self.compute_reward(action, path_x, path_y, found_pose, current_pose)
+        reward, is_finish = self.compute_reward(action, path_x, path_y, found_pose)
 
         path_f = []
         sub_path = [path_x[-1], path_y[-1]] # target x, target y (or angle)
         path_f.append(sub_path)
 
-        state_ = self.convert_state(laser_points, current_pose, path_f)
+        state_ = self.convert_state(laser_points, path_f)
 
-        # return Step(observation=state_, reward=reward, done=is_finish)
-        print (action, reward, current_pose)
         return state_, reward, is_finish, ''
 
-    def compute_reward(self, action, path_x, path_y, found_pose, current_pose):
+    def compute_reward(self, action, path_x, path_y, found_pose):
         is_finish = False
         reward = -0.5
 
-        reward -= abs(current_pose[0])
         # if abs(action[0]) == 1:
         #     reward -= 0.5
 
@@ -141,10 +126,11 @@ class Simu_env():
 
         diff = self.dist_pre - dist
         reward += diff * 20
-        if reward > 0 and action[1] == 1:
-            reward += diff * 10
-        if action[1] == -1:
-            reward -= abs(diff) * 10
+
+        # if reward > 0 and action[1] == 1:
+        #     reward += diff * 10
+        # if action[1] == -1:
+        #     reward -= abs(diff) * 10
         # if dist - self.dist_pre < -0.02:  # when closer to target
         #     reward += 1            # 1
         # else:
