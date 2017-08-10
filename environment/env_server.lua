@@ -123,8 +123,8 @@ function sample_obstacle_position(obs_hds, num)
 
     for i=1, num, 1 do
         obs_pos = simGetObjectPosition(obs_hds[i], -1)
-        obs_pos[1] = (math.random()-0.5) * 5 
-        obs_pos[2] = (math.random()-0.5) * 5
+        obs_pos[1] = (math.random()-0.5) * 4
+        obs_pos[2] = (math.random()-0.5) * 3
 
         if obs_pos[1] > 2.5 then
             obs_pos[1] = 2.5
@@ -223,14 +223,14 @@ function sample_init(level)
     else        -- 2 meter around the robot with random obstacle every time
         -- sample initial robot pose
         robot_pos[1] = (math.random() - 0.5) * max_r
-        robot_pos[2] = (math.random() - 0.5) * max_r
+        robot_pos[2] = - math.random() - 1.5
         robot_pos[3] = start_pos[3]
 
         robot_ori[3] = (math.random() - 0.5) * math.pi
 
         -- sample initial target pose
         target_pos[1] = (math.random() - 0.5) * max_r
-        target_pos[2] = (math.random() - 0.5) * max_r
+        target_pos[2] = math.random() + 1.5
         target_pos[3] = 0
     
         sample_obstacle_position(obs_hds, #obs_hds)

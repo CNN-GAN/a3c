@@ -13,9 +13,9 @@ N_WORKERS = 4 #multiprocessing.cpu_count()
 print ('cpu: ', multiprocessing.cpu_count())
 MAX_GLOBAL_EP = 10000
 MAX_STEP_EP = 100
-BATCH_SIZE = 100
+BATCH_SIZE = 50
 GLOBAL_NET_SCOPE = 'Global_Net'
-GAMMA = 0.97
+GAMMA = 0.98
 ENTROPY_BETA = 0.001
 LR_A = 0.01    # learning rate for actor
 LR_C = 0.01    # learning rate for critic
@@ -89,7 +89,7 @@ class ACNet(object):
             #                             activation=tf.nn.relu6,
             #                             name = 'laser_conv2')
             conv_flat = tf.contrib.layers.flatten(conv1)
-            conv_fc = tf.layers.dense(inputs=conv_flat, units=64, activation=tf.nn.relu6, name = 'laser_conv_fc')
+            conv_fc = tf.layers.dense(inputs=conv_flat, units=32, activation=tf.nn.relu6, name = 'laser_conv_fc')
 
             # # process laser
             # laser_reshape = tf.reshape(self.laser,shape=[-1, 180]) 
@@ -105,10 +105,10 @@ class ACNet(object):
             # concat_fc = tf.layers.dense(inputs=concat_feature, units=32, activation=tf.nn.relu, name = 'concat_fc1')
 
         with tf.variable_scope('actor'):
-            l_a = tf.layers.dense(concat_feature, 32, tf.nn.relu6, kernel_initializer=w_init, name='actor_fc')
+            l_a = tf.layers.dense(concat_feature, 16, tf.nn.relu6, kernel_initializer=w_init, name='actor_fc')
             a_prob = tf.layers.dense(l_a, N_A, tf.nn.softmax, kernel_initializer=w_init, name='actor_prob')
         with tf.variable_scope('critic'):
-            l_c = tf.layers.dense(concat_feature, 32, tf.nn.relu6, kernel_initializer=w_init, name='critic_fc')
+            l_c = tf.layers.dense(concat_feature, 16, tf.nn.relu6, kernel_initializer=w_init, name='critic_fc')
             v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='critic_value')  # state value
         return a_prob, v
 
@@ -189,6 +189,8 @@ class Worker(object):
 
             # print (len(batch_s), len(batch_a), len(batch_v_real))
             mean_reward = np.mean(batch_r)
+            mean_return = np.mean(batch_v_real)
+            
             if (len(batch_s) > BATCH_SIZE):
                 batch_s, batch_a, batch_v_real = np.vstack(batch_s), np.array(batch_a), np.vstack(batch_v_real)
                 feed_dict = {
@@ -206,14 +208,16 @@ class Worker(object):
                 # if self.name == 'W_0':
                 summary = tf.Summary()
 
-                summary.value.add(tag='Perf/Avg Reward', simple_value=float(mean_reward))
+                summary.value.add(tag='Perf/Avg reward', simple_value=float(mean_reward))
+                summary.value.add(tag='Perf/Avg return', simple_value=float(mean_return))
+                
                 # summary.value.add(tag='Losses/loss', simple_value=float(loss))
                 # summary.histogram.add(tag='Losses/grad', simple_value=float(grad))
                 summary_writer.add_summary(summary, GLOBAL_EP)
                 summary_writer.flush()  
 
             self.AC.pull_global()
-            
+
 
 if __name__ == "__main__":
     SESS = tf.Session()

@@ -13,18 +13,18 @@ print ('import env vrep')
 action_list = []
 for a in range(-1, 2):
     for b in range(-1, 2):
-        # for c in range(-1, 2):
+        for c in range(-1, 2):
             # for d in range(-1, 2):
             #     for e in range(-1, 2):
-        action = []
-        action.append(a)
-        action.append(b)
-        action.append(0)
-        action.append(0)
-        action.append(0)
-        # print action
-        action_list.append(action)
-        # print action_list
+            action = []
+            action.append(a)
+            action.append(b)
+            action.append(c)
+            action.append(0)
+            action.append(0)
+            # print action
+            action_list.append(action)
+            # print action_list
 
 # print action_list
 observation_space = 182
@@ -122,9 +122,8 @@ class Simu_env():
 
     def compute_reward(self, action, path_x, path_y, found_pose):
         is_finish = False
-        reward = -1
-        # if action[1] == -1:
-        #     reward -= 1
+        reward = -0.5
+
         # if abs(action[0]) == 1:
         #     reward -= 0.5
 
@@ -135,17 +134,23 @@ class Simu_env():
         dist = math.sqrt(path_x[-1]*path_x[-1] + path_y[-1]*path_y[-1])
         # dist = path_x[-1]
         # print (dist, self.dist_pre)
-        if dist - self.dist_pre < -0.02:  # when closer to target
-            reward += 1            # 1
-        else:
-            reward -= 1            # -3
+        diff = self.dist_pre - dist
+        reward += diff * 20
+        if reward > 0 and action[1] == 1:
+            reward += diff * 10
+        if action[1] == -1:
+            reward -= abs(diff) * 10
+        # if dist - self.dist_pre < -0.02:  # when closer to target
+        #     reward += 1            # 1
+        # else:
+        #     reward -= 1            # -3
 
         self.dist_pre = dist
 
         if dist < 0.1:              # when reach to the target
             is_finish = True
             # self.succed_time += 1
-            reward += 5            # 9
+            reward += 10            # 9
             self.ep_reap_time = 0
             self.pass_ep = 1
             # if self.succed_time > 10:
@@ -158,9 +163,9 @@ class Simu_env():
         #     reward -= 2             # -3
 
         if found_pose == bytearray(b"f"):       # when collision or no pose can be found
-            is_finish = True 
+            # is_finish = True 
             self.succed_time = 0 
-            reward -= 5            # -11
+            reward -= 10            # -11
             self.pass_ep = -1
 
         # if self.step_inep > 115:
