@@ -163,7 +163,7 @@ class Simu_env():
         #     reward -= 2             # -3
 
         if found_pose == bytearray(b"f"):       # when collision or no pose can be found
-            # is_finish = True 
+            is_finish = True 
             self.succed_time = 0 
             reward -= 10            # -11
             self.pass_ep = -1

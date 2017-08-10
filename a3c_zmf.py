@@ -17,8 +17,8 @@ BATCH_SIZE = 50
 GLOBAL_NET_SCOPE = 'Global_Net'
 GAMMA = 0.98
 ENTROPY_BETA = 0.001
-LR_A = 0.01    # learning rate for actor
-LR_C = 0.01    # learning rate for critic
+LR_A = 0.005    # learning rate for actor
+LR_C = 0.005    # learning rate for critic
 GLOBAL_EP = 0
 
 N_S = env_vrep.observation_space
