@@ -5,24 +5,28 @@ import numpy as np
 from environment import env_hlc
 import os
 import shutil
-# import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
+import math
 
 load_model = True
 LOG_DIR = './data/log'
 N_WORKERS = 4 #multiprocessing.cpu_count()
 print ('cpu: ', multiprocessing.cpu_count())
 MAX_GLOBAL_EP = 10000
-MAX_STEP_EP = 100
-BATCH_SIZE = 50
+MAX_STEP_EP = 50
+BATCH_SIZE = 100
 GLOBAL_NET_SCOPE = 'Global_Net'
-GAMMA = 0.98
+GAMMA = 0.99
 ENTROPY_BETA = 0.001
-LR_A = 0.005    # learning rate for actor
-LR_C = 0.005    # learning rate for critic
+LR_A = 0.01    # learning rate for actor
+LR_C = 0.01    # learning rate for critic
 GLOBAL_EP = 0
 
 N_S = env_hlc.observation_space
 N_A = env_hlc.action_space
+
+v_img = np.zeros((100, 100), np.float32)
 
 
 class ACNet(object):
@@ -71,49 +75,50 @@ class ACNet(object):
         w_init = tf.random_normal_initializer(0., .1)
         with tf.variable_scope('feature'):
             # l_a = tf.layers.dense(self.s, 16, tf.nn.relu6, kernel_initializer=w_init, name='la')
-            self.laser = tf.slice(self.s, [0, 0], [-1, 180])
-            self.target = tf.slice(self.s, [0, 180], [-1, 2])
+            # self.laser = tf.slice(self.s, [0, 0], [-1, 180])
+            # self.target = tf.slice(self.s, [0, 180], [-1, 2])
 
             # process laser
-            laser_reshape = tf.reshape(self.laser,shape=[-1, 180, 1]) 
-            conv1 = tf.layers.conv1d(   inputs=laser_reshape,
-                                        filters=32,
-                                        kernel_size=3,
-                                        padding="valid",
-                                        activation=tf.nn.relu6,
-                                        name = 'laser_conv1')
+            # laser_reshape = tf.reshape(self.laser,shape=[-1, 180, 1]) 
+            # conv1 = tf.layers.conv1d(   inputs=laser_reshape,
+            #                             filters=128,
+            #                             kernel_size=3,
+            #                             padding="valid",
+            #                             activation=tf.nn.relu6,
+            #                             name = 'laser_conv1')
             # conv2 = tf.layers.conv1d(   inputs=conv1,
             #                             filters=32,
-            #                             kernel_size=4,
+            #                             kernel_size=3,
             #                             padding="valid",
             #                             activation=tf.nn.relu6,
             #                             name = 'laser_conv2')
-            conv_flat = tf.contrib.layers.flatten(conv1)
-            conv_fc = tf.layers.dense(inputs=conv_flat, units=32, activation=tf.nn.relu6, name = 'laser_conv_fc')
+            # conv_flat = tf.contrib.layers.flatten(conv1)
+            # conv_fc = tf.layers.dense(inputs=conv_flat, units=26456, activation=tf.nn.relu6, name = 'laser_conv_fc')
 
             # # process laser
             # laser_reshape = tf.reshape(self.laser,shape=[-1, 180]) 
             # laser_fc1 = tf.layers.dense(inputs=laser_reshape, units=90, activation=tf.nn.relu6, name = 'laser_fc1')
             # laser_fc2 = tf.layers.dense(inputs=laser_fc1, units=45, activation=tf.nn.relu6, name = 'laser_fc2')
 
-            target_reshape = tf.reshape(self.target,shape=[-1, 2]) 
-            # target_fc = tf.layers.dense(inputs=target_reshape, units=16, activation=tf.nn.relu6, name = 'target_fc1')
+            target_reshape = tf.reshape(self.s,shape=[-1, 2]) 
+            target_fc = tf.layers.dense(inputs=target_reshape, units=32, activation=tf.nn.relu6, name = 'target_fc1')
             # path_fc2 = tf.layers.dense(inputs=path_fc, units=32, activation=tf.nn.relu, name = 'target_fc2')
 
             # concat laser and target
-            concat_feature = tf.concat([conv_fc, target_reshape], 1, name = 'concat')
-            # concat_fc = tf.layers.dense(inputs=concat_feature, units=32, activation=tf.nn.relu, name = 'concat_fc1')
+            # concat_feature = tf.concat([conv_fc, target_reshape], 1, name = 'concat')
+            # concat_fc = tf.layers.dense(inputs=conv_fc, units=128, activation=tf.nn.relu, name = 'concat_fc1')
 
         with tf.variable_scope('actor'):
-            l_a = tf.layers.dense(concat_feature, 16, tf.nn.relu6, kernel_initializer=w_init, name='actor_fc')
-            a_prob = tf.layers.dense(l_a, N_A, tf.nn.softmax, kernel_initializer=w_init, name='actor_prob')
+            # l_a = tf.layers.dense(target_fc, 32, tf.nn.relu6, kernel_initializer=w_init, name='actor_fc')
+            a_prob = tf.layers.dense(target_fc, N_A, tf.nn.softmax, kernel_initializer=w_init, name='actor_prob')
         with tf.variable_scope('critic'):
-            l_c = tf.layers.dense(concat_feature, 16, tf.nn.relu6, kernel_initializer=w_init, name='critic_fc')
-            v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='critic_value')  # state value
+            # l_c = tf.layers.dense(target_fc, 32, tf.nn.relu6, kernel_initializer=w_init, name='critic_fc')
+            v = tf.layers.dense(target_fc, 1, kernel_initializer=w_init, name='critic_value')  # state value
         return a_prob, v
 
     def update_global(self, feed_dict):  # run by a local
-        SESS.run([self.update_a_op, self.update_c_op], feed_dict)  # local grads applies to global net
+        v, c_loss, a_loss, _, _ = SESS.run([self.v, self.c_loss, self.a_loss, self.update_a_op, self.update_c_op], feed_dict)  # local grads applies to global net
+        return v, c_loss, a_loss 
 
     def pull_global(self):  # run by a local
         SESS.run([self.pull_a_params_op, self.pull_c_params_op])
@@ -145,8 +150,9 @@ class Worker(object):
         return buffer_v_target
 
     def work(self):
-        global GLOBAL_EP
+        global GLOBAL_EP, MAX_STEP_EP
         total_step = 1
+        max_step = 3
         buffer_s, buffer_a, buffer_r, buffer_r_real = [], [], [], []
         batch_s, batch_a, batch_r, batch_v_real = [], [], [], []
         while not COORD.should_stop() and GLOBAL_EP < MAX_GLOBAL_EP:
@@ -158,14 +164,27 @@ class Worker(object):
                 #     self.env.render()
                 a, prob = self.AC.choose_action(s)
                 s_, r, done, info = self.env.step(a)
+                
+                # if self.name == 'W_0':
+                #     robot_loc = env.get_robot_location()
+                #     row = 100 - int((robot_loc[1] + 2.5)*20)
+                #     col = int((robot_loc[0] + 2.5)*20)
+                #     v_img[row, col] = value
+
+                #     min_v = v_img.min()
+                #     max_v = v_img.max()
+                #     scale = abs(max_v - min_v)
+                #     img = (v_img - min_v)/scale * 255
+                #     plt.clf()
+                #     plt.imshow(img,cmap='gray')
+                #     print (min_v, max_v, row, col)
+
                 # print (a, r, prob)
                 # if self.name == 'W_0':
+                    # cv2.circle(v_img, (row,col), )
                 #     plt.clf()
                 #     plt.plot(prob[0])
-                #     plt.pause(0.001)
-
-                if step_in_ep > MAX_STEP_EP:
-                    done = True
+                # plt.pause(0.001)
 
                 ep_r += r
 
@@ -191,6 +210,10 @@ class Worker(object):
             mean_reward = np.mean(batch_r)
             mean_return = np.mean(batch_v_real)
             
+            GLOBAL_EP += 1
+            # if(GLOBAL_EP % 10 == 1):
+            #     max_step += 1
+
             if (len(batch_s) > BATCH_SIZE):
                 batch_s, batch_a, batch_v_real = np.vstack(batch_s), np.array(batch_a), np.vstack(batch_v_real)
                 feed_dict = {
@@ -198,18 +221,31 @@ class Worker(object):
                     self.AC.a_his: batch_a,
                     self.AC.v_target: batch_v_real,
                 }
-                self.AC.update_global(feed_dict)
+                v, c_loss, a_loss = self.AC.update_global(feed_dict)
+
+                print(batch_v_real[-1][0], v[-1][0], c_loss, a_loss)
+                # sub = batch_v_real - v
+                # sq = sub*sub
+                # sq = sq.flatten()
+                # mean_sq = np.mean(sq)
+                # sum_sq = np.sum(mean_sq)
+                # print(sum_sq/2)
+
+                diff = abs(batch_v_real[-1][0] - v[-1][0])
 
                 batch_s, batch_a, batch_r, batch_v_real = [], [], [], []
                 saver.save(SESS, './data/model.cptk') 
 
-                print (self.name, "updated", mean_reward)
-                GLOBAL_EP += 1
+                # print (self.name, "updated", mean_reward)
                 # if self.name == 'W_0':
                 summary = tf.Summary()
 
                 summary.value.add(tag='Perf/Avg reward', simple_value=float(mean_reward))
                 summary.value.add(tag='Perf/Avg return', simple_value=float(mean_return))
+                summary.value.add(tag='Loss/V loss', simple_value=float(c_loss))
+                summary.value.add(tag='Loss/A loss', simple_value=float(a_loss))
+                
+                summary.value.add(tag='Loss/d Terminal', simple_value=float(diff))
                 
                 # summary.value.add(tag='Losses/loss', simple_value=float(loss))
                 # summary.histogram.add(tag='Losses/grad', simple_value=float(grad))

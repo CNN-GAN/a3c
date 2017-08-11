@@ -13,18 +13,18 @@ print ('import env vrep')
 action_list = []
 for a in range(-1, 2):
     for b in range(-1, 2):
-        for c in range(-1, 2):
-            action = []
-            action.append(a)
-            action.append(b)
-            action.append(c)
-            action.append(0)
-            action.append(0)
-            action_list.append(action)
-            # print action_list
+        # for c in range(-1, 2):
+        action = []
+        action.append(a)
+        action.append(b)
+        action.append(0)
+        action.append(0)
+        action.append(0)
+        action_list.append(action)
+        # print action_list
 
 # print action_list
-observation_space = 182
+observation_space = 2
 action_space = len(action_list)
 
 class Simu_env():
@@ -37,7 +37,7 @@ class Simu_env():
         self.path_used = 1
         self.step_inep = 0
         self.object_num = 0
-        self.game_level = 4
+        self.game_level = 0
         self.succed_time = 0
         self.pass_ep = 1
         self.ep_reap_time = 0
@@ -53,29 +53,25 @@ class Simu_env():
     #def action_space(self):
     #    return Discrete(len(action_list))
 
-    def convert_state(self, laser_points, path):
-        path = np.asarray(path)
-        laser_points = np.asarray(laser_points)
-        state = np.append(laser_points, path)
-        state = state.flatten()
+    def get_robot_location(self):
+        _, _, g_r_position, _, _ = self.call_sim_function('rwRobot', 'get_robot_position')
+        return g_r_position
 
-        # state = np.asarray(path)
+    def convert_state(self, laser_points, path):
+        # path = np.asarray(path)
+        # laser_points = np.asarray(laser_points)
+        # state = np.append(laser_points, path)
         # state = state.flatten()
+
+        state = np.asarray(path)
+        state = state.flatten()
         return state
 
     def reset(self):
         # print ('reset')
         self.step_inep = 0
 
-        if self.pass_ep < 0:
-            self.ep_reap_time += 1
-        if self.ep_reap_time > 20:
-            self.ep_reap_time = 0
-            self.pass_ep = 1
-        self.pass_ep = 1
-        res, retInts, retFloats, retStrings, retBuffer = self.call_sim_function('rwRobot', 'reset', [self.pass_ep * self.game_level])        
-        self.pass_ep = 1
-
+        res, retInts, retFloats, retStrings, retBuffer = self.call_sim_function('rwRobot', 'reset', [self.game_level])        
         state, reward, is_finish, info = self.step([0, 0, 0, 0, 0])
         return state
 
@@ -89,7 +85,8 @@ class Simu_env():
         if isinstance(action, np.int32) or isinstance(action, int) or isinstance(action, np.int64):
             action = action_list[action]
 
-        res, retInts, current_pose, retStrings, found_pose = self.call_sim_function('rwRobot', 'step', action)
+        _, _, current_pose, _, found_pose = self.call_sim_function('rwRobot', 'step', action)
+
         # print (action, current_pose)
         laser_points = self.get_laser_points()
         path_x, path_y = self.get_global_path()  # the target position is located at the end of the list
@@ -105,13 +102,13 @@ class Simu_env():
         sub_path = [path_x[-1], path_y[-1]] # target x, target y (or angle)
         path_f.append(sub_path)
 
-        state_ = self.convert_state(laser_points, path_f)
+        state_ = self.convert_state(laser_points, path_f, )
 
         return state_, reward, is_finish, ''
 
     def compute_reward(self, action, path_x, path_y, found_pose):
         is_finish = False
-        reward = -0.5
+        reward = 0
 
         # if abs(action[0]) == 1:
         #     reward -= 0.5
@@ -121,11 +118,16 @@ class Simu_env():
         #     reward -= 5
 
         dist = math.sqrt(path_x[-1]*path_x[-1] + path_y[-1]*path_y[-1])
-        # dist = path_x[-1]
-        # print (dist, self.dist_pre)
+        # # dist = path_x[-1]
+        # if dist < self.dist_pre:
+        #     reward += 1
+        # else:
+        #     reward -= 1
 
-        diff = self.dist_pre - dist
-        reward += diff * 20
+        # self.dist_pre = dist
+
+        # diff = self.dist_pre - dist
+        # reward += diff * 20
 
         # if reward > 0 and action[1] == 1:
         #     reward += diff * 10
@@ -136,27 +138,24 @@ class Simu_env():
         # else:
         #     reward -= 1            # -3
 
-        self.dist_pre = dist
-
-        if dist < 0.1:              # when reach to the target
+        if dist < 0.2:              # when reach to the target
             is_finish = True
             # self.succed_time += 1
-            reward += 10            # 9
+            reward += 3            # 9
             self.ep_reap_time = 0
             self.pass_ep = 1
             # if self.succed_time > 10:
             #     self.game_level += 1
             #     self.succed_time = 0
 
-        # if dist > 5:                # when too far away to the target
-        #     is_finish = True
-        #     self.succed_time = 0
-        #     reward -= 2             # -3
+        if dist > 1:
+            is_finish = True 
+            reward -= 3
 
         if found_pose == bytearray(b"f"):       # when collision or no pose can be found
             is_finish = True 
             self.succed_time = 0 
-            reward -= 10            # -11
+            reward -= 3            # -11
             self.pass_ep = -1
 
         # if self.step_inep > 115:

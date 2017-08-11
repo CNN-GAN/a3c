@@ -9,7 +9,6 @@ require("robot_control")
 -------- remote functions ---------------------
 function reset(inInts,inFloats,inStrings,inBuffer)
     local level = inFloats[1]
-    print (level)
     init(level)
     return {}, {}, {}, ''
 end
@@ -22,6 +21,11 @@ function step(inInts,inFloats,inStrings,inBuffer)
     return {}, current_pose, {}, res
 end
 
+function get_robot_position(inInts,inFloats,inStrings,inBuffer)
+    local r_pos = simGetObjectPosition(robot_hd, -1)  
+
+    return {}, r_pos, {}, res
+end
 
 function get_global_path(inInts,inFloats,inStrings,inBuffer)
     -- return {},{},{},'f'
@@ -105,8 +109,8 @@ function transform_path_to_robotf(path_d_list, robot_hd)
         local d_hd = path_d_list[i]
         local d_pos = simGetObjectPosition(d_hd, robot_hd)
 
-        local dist = math.sqrt(d_pos[1]*d_pos[1] + d_pos[2]*d_pos[2])
-        local angle = math.atan(d_pos[2]/d_pos[1])
+        -- local dist = math.sqrt(d_pos[1]*d_pos[1] + d_pos[2]*d_pos[2])
+        -- local angle = math.atan(d_pos[2]/d_pos[1])
 
         -- path_in_robotf[#path_in_robotf + 1] = dist
         -- path_in_robotf[#path_in_robotf + 1] = angle
@@ -124,13 +128,13 @@ function sample_obstacle_position(obs_hds, num)
     for i=1, num, 1 do
         obs_pos = simGetObjectPosition(obs_hds[i], -1)
 
-        obs_pos[1] = (math.random()-0.5) * 0.3 + obs_pos[1]
-        obs_pos[2] = (math.random()-0.5) * 0.3 + obs_pos[2]
+        obs_pos[1] = (math.random()-0.5)*1.3 
+        obs_pos[2] = (math.random()-0.5)*2 
 
-        if obs_pos[1] > 2.5 then
-            obs_pos[1] = 2.5
-        elseif obs_pos[1] < -2.5 then 
-            obs_pos[1] = -2.5
+        if obs_pos[1] > 1 then
+            obs_pos[1] = 1
+        elseif obs_pos[1] < -1 then 
+            obs_pos[1] = -1
         end
 
         if obs_pos[2] > 1 then
@@ -138,7 +142,7 @@ function sample_obstacle_position(obs_hds, num)
         elseif obs_pos[2] < -1 then 
             obs_pos[2] = -1
         end
-        print(obs_pos[1], obs_pos[2])
+        -- print(obs_pos[1], obs_pos[2])
         simSetObjectPosition(obs_hds[i], -1, obs_pos)
     end
 end
@@ -160,31 +164,29 @@ function sample_init(level)
 
     print ('level: '..level)
     local max_r = 3
-    if level == 10 then      -- 1 meter around the robot 
+    if level == 0 then      -- 
         -- sample initial robot pose
-        print ('in level: '..level)
-        robot_pos[1] = 0
-        robot_pos[2] = 0
+        target_pos[1] = 0
+        target_pos[2] = 0
+        target_pos[3] = 0
+
+        robot_pos[1] = (math.random() - 0.5) * 1 + target_pos[1]
+        robot_pos[2] = (math.random() - 0.5) * 1 + target_pos[2]
         robot_pos[3] = start_pos[3]
 
         robot_ori[3] = 0
 
-        -- sample initial target pose
-        target_pos[1] = 3
-        target_pos[2] = 0
-        target_pos[3] = 0
-
     elseif level == 1 then      -- 1 meter around the robot 
         -- sample initial robot pose
-        robot_pos[1] = (math.random() - 0.5) * 2
-        robot_pos[2] = (math.random() - 0.5) * 2
+        robot_pos[1] = (math.random() - 0.5) * 1
+        robot_pos[2] = (math.random() - 0.5) * 1
         robot_pos[3] = start_pos[3]
 
-        robot_ori[3] = (math.random() - 0.5) * math.pi
+        robot_ori[3] = (math.random() - 0.5) * 2 *  math.pi
 
         -- sample initial target pose
-        target_pos[1] = (math.random() - 0.5) * 2 + robot_pos[1]
-        target_pos[2] = (math.random() - 0.5) * 2 + robot_pos[2]
+        target_pos[1] = (math.random() - 0.5) * 1.5 + robot_pos[1]
+        target_pos[2] = (math.random() - 0.5) * 1.5 + robot_pos[2]
         target_pos[3] = 0
 
     elseif level == 2 then      -- 2 meter around the robot
@@ -216,22 +218,20 @@ function sample_init(level)
         -- sample_obstacle_position(obs_hds, #obs_hds/2)
     else        -- 2 meter around the robot with random obstacle every time
         -- sample initial robot pose
-        -- robot_pos[1] = (math.random() - 0.5)
-        -- robot_pos[2] = (math.random() - 0.5)  - 1
-        robot_pos[1] = start_pos[1]
-        robot_pos[2] = start_pos[2]
+        robot_pos[1] = (math.random() - 0.5) * 4
+        robot_pos[2] = (math.random() - 0.5) - 2
 
         robot_pos[3] = start_pos[3]
 
         robot_ori[3] = (math.random() - 0.5) * math.pi
 
         -- sample initial target pose
-        target_pos[1] = (math.random() - 0.5)
-        target_pos[2] = (math.random() - 0.5)  + 1
+        target_pos[1] = (math.random() - 0.5) * 4
+        target_pos[2] = (math.random() - 0.5) + 2
 
         target_pos[3] = 0
     
-        sample_obstacle_position(obs_hds, #obs_hds)
+        -- sample_obstacle_position(obs_hds, 6)
     end
 
     -- set robot --
@@ -239,7 +239,7 @@ function sample_init(level)
     simSetObjectQuaternion(robot_hd,-1,robot_ori)
 
     -- set target --
-    -- simSetObjectPosition(target_hd,-1,target_pos)
+    simSetObjectPosition(target_hd,-1,target_pos)
 
     -- check collision for robot pose --
     local res_robot = simCheckCollision(robot_body_hd, obstacle_all_hd)
