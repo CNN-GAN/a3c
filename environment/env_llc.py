@@ -10,33 +10,43 @@ import pickle as pickle
 
 print ('import env vrep')
 
+action_hlc = []
+for a in range(-1, 2):
+    for b in range(-1, 2):
+        # for c in range(-1, 2):
+        action = []
+        action.append(a)
+        action.append(b)
+        action.append(0)
+        action.append(0)
+        action.append(0)
+        # print action
+        action_hlc.append(action)
+        # print action_list
+
 action_list = []
 for a in range(-1, 2):
     for b in range(-1, 2):
         for c in range(-1, 2):
-            # for d in range(-1, 2):
-            #     for e in range(-1, 2):
-            action = []
-            action.append(a)
-            action.append(b)
-            action.append(c)
-            action.append(0)
-            action.append(0)
-            # print action
-            action_list.append(action)
-            # print action_list
+            for d in range(-1, 2):
+                for e in range(-1, 2):
+                    action = []
+                    action.append(a)
+                    action.append(b)
+                    action.append(c)
+                    action.append(d)
+                    action.append(e)
+                    # print action
+                    action_list.append(action)
+                    # print action_list
 
 # print action_list
-observation_space = 182
+observation_space = 183
 action_space = len(action_list)
 
 class Simu_env():
     def __init__(self, port_num):
-        # super(Vrep_env, self).__init__(port_num)
         # self.action_space = ['l', 'f', 'r', 'h', 'e']
-        # self.n_actions = len(self.action_space)
-        # self.n_features = 2
-        # self.title('Vrep_env')
 
         self.port_num = port_num
         self.dist_pre = 100
@@ -48,6 +58,7 @@ class Simu_env():
         self.succed_time = 0
         self.pass_ep = 1
         self.ep_reap_time = 0
+        self.hlc_index = 0
 
         self.connect_vrep()
         self.reset()
@@ -60,65 +71,70 @@ class Simu_env():
     #def action_space(self):
     #    return Discrete(len(action_list))
 
-    def convert_state(self, laser_points, current_pose, path):
-        path = np.asarray(path)
+    def convert_state(self, laser_points, current_pose, hlc_index):
+        current_pose = np.asarray(current_pose)
         laser_points = np.asarray(laser_points)
-        state = np.append(laser_points, path)
+        for i in range(len(laser_points)):
+            if laser_points[i] > 1:
+                laser_points[i] = 1
         
-        # state = np.asarray(path)
-        # state = state.flatten()
+        state = np.append(laser_points, current_pose)
+        state = np.append(state, hlc_index)
+        
+        state = state.flatten()
+        return state
+
+    def get_observation(self):
+        # self.hlc_index = 0
+        while True:
+            # hlc_index = np.random.randint(len(action_hlc))
+            # action = action_hlc[self.hlc_index]
+            action = [0,1,0,0,0]
+            found_pose, retInts, retFloats, retStrings, retBuffer = self.call_sim_function('rwRobot', 'step_hlc', action)     
+            if retBuffer == bytearray(b"t"):
+                break
+
+        res, retInts, current_pose, retStrings, found_pose = self.call_sim_function('rwRobot', 'step', [0,0,0,0,0])
+        laser_points = self.get_laser_points()
+        state = self.convert_state(laser_points, current_pose, self.hlc_index)
         return state
 
     def reset(self):
         # print ('reset')
-        self.step_inep = 0
-
-        if self.pass_ep < 0:
-            self.ep_reap_time += 1
-        if self.ep_reap_time > 20:
-            self.ep_reap_time = 0
-            self.pass_ep = 1
-        self.pass_ep = 1
-        res, retInts, retFloats, retStrings, retBuffer = self.call_sim_function('rwRobot', 'reset', [self.pass_ep * self.game_level])        
-        self.pass_ep = 1
-        # res,objs=vrep.simxGetObjects(self.clientID,vrep.sim_handle_all,vrep.simx_opmode_oneshot_wait)
-        # self.object_num = len(objs)
-        # # print ('object number: ', self.object_num)
-
-        state, reward, is_finish, info = self.step([0, 0, 0, 0, 0])
+        res, retInts, retFloats, retStrings, retBuffer = self.call_sim_function('rwRobot', 'reset', [self.game_level])        
+        state = self.get_observation()
         return state
 
     def step(self, action):
         self.step_inep += 1
-
-        # res,objs=vrep.simxGetObjects(self.clientID,vrep.sim_handle_all,vrep.simx_opmode_oneshot_wait)
-        # if self.object_num != len(objs):
-        #     print('connection failed! ', self.object_num, len(objs))
-        #     # return Step(observation=state, reward=0, done=False)
+        if self.step_inep % 10 == 0:
+            self.hlc_index = (self.hlc_index+1)%len(action_hlc)
 
         if isinstance(action, np.int32) or isinstance(action, int) or isinstance(action, np.int64):
             action = action_list[action]
 
         res, retInts, current_pose, retStrings, found_pose = self.call_sim_function('rwRobot', 'step', action)
-
         laser_points = self.get_laser_points()
-        path_x, path_y = self.get_global_path()  # the target position is located at the end of the list
-
-        if len(path_x) < 1 or len(path_y) < 1:
-            print ('bad path length')
-            return [0, 0], 0, False, 'f'
 
         #compute reward and is_finish
-        reward, is_finish = self.compute_reward(action, path_x, path_y, found_pose)
+        res, retInts, dist, retStrings, found_pose = self.call_sim_function('rwRobot', 'get_dist', action)
+        reward = 0
+        if abs(dist[0]) > 0.05:
+            reward -= 1
+        if abs(current_pose[0]) > 0.05:
+            reward -= 1
+        if abs(current_pose[1] - 0.07234) > 0.05:
+            reward -= 1
 
-        path_f = []
-        sub_path = [path_x[-1], path_y[-1]] # target x, target y (or angle)
-        path_f.append(sub_path)
+        if found_pose == bytearray(b"f"):       # when collision or no pose can be found
+            reward -= 10           
 
-        state_ = self.convert_state(laser_points, current_pose, path_f)
-
+        print (current_pose, dist[0], reward)
+        print ([0,1,0,0,0])
+        print (action)
+        state_ = self.get_observation()
         # return Step(observation=state_, reward=reward, done=is_finish)
-        return state_, reward, is_finish, ''
+        return state_, reward, False, ''
 
     def compute_reward(self, action, path_x, path_y, found_pose):
         is_finish = False

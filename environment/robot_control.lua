@@ -13,6 +13,7 @@ dl = step
 
 collision_hd_1 = simGetCollectionHandle('robot_body')
 collision_hd_2 = simGetCollectionHandle('obstacle_all')
+collision_hd_3 = simGetCollectionHandle('robot_base')
 
 
 function do_action(robot_hd, joint_hds, action, start_joints)
@@ -58,7 +59,7 @@ function do_action(robot_hd, joint_hds, action, start_joints)
         foot_pos[2] = tilt_pos[3] - 0.0444
 
         if foot_pos[2] < 0 then
-            displayInfo('too low '..i..' '..foot_pos[1]..' '..foot_pos[2] )
+            -- displayInfo('too low '..i..' '..foot_pos[1]..' '..foot_pos[2] )
             restore_pose(robot_hd, joint_hds, current_pos, current_ori, current_joints)
             return {h, l}, 'f'
         end
@@ -66,7 +67,7 @@ function do_action(robot_hd, joint_hds, action, start_joints)
         local knee_x, knee_y = get_intersection_point(0, 0, foot_pos[1], foot_pos[2], r0, r1)
 
         if knee_x == -1 or knee_x ~= knee_x then
-            displayInfo('no pose found '..i..' '..foot_pos[1]..' '..foot_pos[2] )
+            -- displayInfo('no pose found '..i..' '..foot_pos[1]..' '..foot_pos[2] )
             restore_pose(robot_hd, joint_hds, current_pos, current_ori, current_joints)
             return {h, l}, 'f'
         end
@@ -99,6 +100,38 @@ function do_action(robot_hd, joint_hds, action, start_joints)
         return {h, l}, 'f'      
     end
 end
+
+function move_hlc(robot_hd, action)
+    local current_pos=simGetObjectPosition(robot_hd,-1)
+    local current_ori=simGetObjectQuaternion(robot_hd,-1)
+
+    local sample_pose = {}
+    sample_pose[1] = dx*action[1]
+    sample_pose[2] = dy*action[2] 
+    sample_pose[3] = dh*action[4] 
+
+    local sample_ori = {}
+    sample_ori[1] = current_ori[1] 
+    sample_ori[2] = current_ori[2]   
+    sample_ori[3] = current_ori[3] + dw*action[3] 
+    sample_ori[4] = current_ori[4]
+
+    -- print (sample_ori[3])
+    simSetObjectPosition(robot_hd, robot_hd, sample_pose)
+    simSetObjectQuaternion(robot_hd, -1, sample_ori)
+
+    -- check collision --
+    res=simCheckCollision(collision_hd_1, collision_hd_2)
+    if res > 0 then 
+        simSetObjectPosition(robot_hd,-1,current_pos)
+        print ('collision')
+        return 'f'     
+    else
+        local final_pose = simGetObjectPosition(robot_hd,-1)
+        return 't'
+    end
+end
+
 
 function restore_pose(robot_hd, joint_hds, poi, ori, joints)
     simSetObjectPosition(robot_hd,-1,poi)
