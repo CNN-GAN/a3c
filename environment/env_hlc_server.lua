@@ -178,15 +178,15 @@ function sample_init(level)
 
     elseif level == 1 then      -- 1 meter around the robot 
         -- sample initial robot pose
-        robot_pos[1] = (math.random() - 0.5) * 1
-        robot_pos[2] = (math.random() - 0.5) * 1
+        robot_pos[1] = 0
+        robot_pos[2] = -2.0
         robot_pos[3] = start_pos[3]
 
-        robot_ori[3] = (math.random() - 0.5) * 2 *  math.pi
+        robot_ori[3] = 0 --(math.random() - 0.5) * 2 *  math.pi
 
         -- sample initial target pose
-        target_pos[1] = (math.random() - 0.5) * 1.5 + robot_pos[1]
-        target_pos[2] = (math.random() - 0.5) * 1.5 + robot_pos[2]
+        target_pos[1] = 0
+        target_pos[2] = 2
         target_pos[3] = 0
 
     elseif level == 2 then      -- 2 meter around the robot
@@ -195,7 +195,7 @@ function sample_init(level)
         robot_pos[2] = (math.random() - 0.5) * max_r
         robot_pos[3] = start_pos[3]
 
-        robot_ori[3] = (math.random() - 0.5) * math.pi
+        robot_ori[3] = (math.random() - 0.5) * 2 * math.pi
 
         -- sample initial target pose
         target_pos[1] = (math.random() - 0.5) * max_r
@@ -208,7 +208,7 @@ function sample_init(level)
         robot_pos[2] = (math.random() - 0.5) * max_r
         robot_pos[3] = start_pos[3]
 
-        robot_ori[3] = (math.random() - 0.5) * math.pi
+        robot_ori[3] = (math.random() - 0.5) * 2 * math.pi
 
         -- sample initial target pose
         target_pos[1] = (math.random() - 0.5) * max_r
@@ -223,7 +223,7 @@ function sample_init(level)
 
         robot_pos[3] = start_pos[3]
 
-        robot_ori[3] = (math.random() - 0.5) * math.pi
+        robot_ori[3] = (math.random() - 0.5) * 2 * math.pi
 
         -- sample initial target pose
         target_pos[1] = (math.random() - 0.5) * 4
