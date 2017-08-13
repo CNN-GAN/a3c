@@ -24,6 +24,10 @@ LR_A = 0.001    # learning rate for actor
 LR_C = 0.01    # learning rate for critic
 GLOBAL_EP = 2400
 
+ep_count_g = 0
+ep_count_c = 0
+ep_count_u = 0
+
 N_S = env_hlc.observation_space
 N_A = env_hlc.action_space
 
@@ -183,10 +187,7 @@ class Worker(object):
 
             buffer_v_target = self.process_ep(buffer_r)
 
-            save_batch = [buffer_s, buffer_a, buffer_r, buffer_v_target]
-            file_name = './batch/' + str(GLOBAL_EP) + '.pkl'
-            with open(file_name, 'wb') as f:
-                pickle.dump(save_batch, f)
+            self.save_buffer(buffer_s, buffer_a, buffer_r, buffer_v_target)                
 
             batch_v_real.extend(buffer_v_target)
             batch_s.extend(buffer_s)
@@ -197,7 +198,6 @@ class Worker(object):
             mean_reward = np.mean(batch_r)
             mean_return = np.mean(batch_v_real)
             GLOBAL_EP += 1
-
 
             if (len(batch_s) > BATCH_SIZE):
                 batch_s, batch_a, batch_v_real = np.vstack(batch_s), np.array(batch_a), np.vstack(batch_v_real)
@@ -218,12 +218,32 @@ class Worker(object):
                 print (last_prob)
                 print (prob - start_prob)
 
-
                 batch_s, batch_a, batch_r, batch_v_real = [], [], [], []
 
                 self.write_summary(mean_reward, mean_return, c_loss, a_loss)
 
             # self.AC.pull_global()
+
+    def save_buffer(self, buffer_s, buffer_a, buffer_r, buffer_v_target):
+        global ep_count_g, ep_count_c, ep_count_u
+        save_batch = [buffer_s, buffer_a, buffer_r, buffer_v_target]
+
+        if buffer_r[-1] == 10:
+            file_name = './batch/batch_goal/' + str(ep_count_g) + '.pkl'
+            with open(file_name, 'wb') as f:
+                pickle.dump(save_batch, f)
+            ep_count_g += 1
+        elif buffer_r[-1] == -10:
+            file_name = './batch/batch_collision/' + str(ep_count_c) + '.pkl'
+            with open(file_name, 'wb') as f:
+                pickle.dump(save_batch, f)
+            ep_count_c += 1
+        else:
+            file_name = './batch/batch_unfinish/' + str(ep_count_u) + '.pkl'
+            with open(file_name, 'wb') as f:
+                pickle.dump(save_batch, f)
+            ep_count_u += 1           
+
 
     def debug_function(prob):
         # if self.name == 'W_0':
