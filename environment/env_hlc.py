@@ -107,7 +107,7 @@ class Simu_env():
     def compute_reward(self, action, path_x, path_y, found_pose):
         is_finish = False
         dist = math.sqrt(path_x[-1]*path_x[-1] + path_y[-1]*path_y[-1])
-        reward = -0.1
+        reward = 0
 
         # sum_action = np.sum(np.abs(action))
         # if (sum_action) == 0:
@@ -115,10 +115,8 @@ class Simu_env():
 
         dist = math.sqrt(path_x[-1]*path_x[-1] + path_y[-1]*path_y[-1])
         # dist = path_x[-1]
-        if dist < self.dist_pre:
-            reward += 0.1
-        else:
-            reward -= 0.2
+        if dist >= self.dist_pre:
+            reward -= 0.1
 
         # diff = self.dist_pre - dist
         # reward += diff * 20

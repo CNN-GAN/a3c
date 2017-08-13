@@ -174,7 +174,7 @@ class Worker(object):
                 if step_in_ep == 0:
                     start_prob = last_prob[0]
 
-                if step_in_ep == MAX_STEP_EP-1:
+                if step_in_ep == MAX_STEP_EP-1 or done:
                     r = r + GAMMA * SESS.run(self.AC.v, {self.AC.s: s_[np.newaxis, :]})[0, 0]
 
                 buffer_s.append(s)
