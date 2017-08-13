@@ -192,17 +192,18 @@ function sample_init(level)
 
     elseif level == 2 then      -- 2 meter around the robot
         -- sample initial robot pose
-        robot_pos[1] = (math.random() - 0.5) * max_r
-        robot_pos[2] = (math.random() - 0.5) * max_r
+        robot_pos[1] = (math.random() - 0.5) * max_r/2
+        robot_pos[2] = (math.random() - 0.5) * max_r/2
         robot_pos[3] = start_pos[3]
 
         robot_ori[3] = (math.random() - 0.5) * 2 * math.pi
 
         -- sample initial target pose
-        target_pos[1] = (math.random() - 0.5) * max_r
-        target_pos[2] = (math.random() - 0.5) * max_r
+        target_pos[1] = (math.random() - 0.5) * max_r/2
+        target_pos[2] = (math.random() - 0.5) * max_r/2
         target_pos[3] = 0
 
+        sample_obstacle_position(obs_hds, #obs_hds)
     elseif level == 3 then      -- 2 meter around the robot with few osbtacles
         -- sample initial robot pose
         robot_pos[1] = (math.random() - 0.5) * max_r

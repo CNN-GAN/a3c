@@ -22,7 +22,7 @@ GAMMA = 0.95
 ENTROPY_BETA = 0.001
 LR_A = 0.001    # learning rate for actor
 LR_C = 0.01    # learning rate for critic
-GLOBAL_EP = 0
+GLOBAL_EP = 2400
 
 N_S = env_hlc.observation_space
 N_A = env_hlc.action_space
@@ -183,6 +183,11 @@ class Worker(object):
 
             buffer_v_target = self.process_ep(buffer_r)
 
+            save_batch = [buffer_s, buffer_a, buffer_r, buffer_v_target]
+            file_name = './batch/' + str(GLOBAL_EP) + '.pkl'
+            with open(file_name, 'wb') as f:
+                pickle.dump(save_batch, f)
+
             batch_v_real.extend(buffer_v_target)
             batch_s.extend(buffer_s)
             batch_a.extend(buffer_a)
@@ -191,15 +196,10 @@ class Worker(object):
 
             mean_reward = np.mean(batch_r)
             mean_return = np.mean(batch_v_real)
-            # GLOBAL_EP += 1
+            GLOBAL_EP += 1
 
-            save_batch = [batch_s, batch_a, batch_v_real]
-            file_name = './batch/' + str(GLOBAL_EP) + '.pkl'
-            with open(file_name, 'wb') as f:
-                pickle.dump(save_batch, f)
 
             if (len(batch_s) > BATCH_SIZE):
-                GLOBAL_EP += 1
                 batch_s, batch_a, batch_v_real = np.vstack(batch_s), np.array(batch_a), np.vstack(batch_v_real)
                 feed_dict = {
                     self.AC.s: batch_s,

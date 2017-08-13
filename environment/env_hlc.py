@@ -35,7 +35,7 @@ class Simu_env():
         self.path_used = 1
         self.step_inep = 0
         self.object_num = 0
-        self.game_level = 3
+        self.game_level = 2
         self.succed_time = 0
         self.pass_ep = 1
         self.ep_reap_time = 0
