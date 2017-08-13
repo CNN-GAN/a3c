@@ -161,6 +161,7 @@ class Worker(object):
         self.AC.pull_global()
         buffer_s, buffer_a, buffer_r, buffer_r_real = [], [], [], []
         batch_s, batch_a, batch_r, batch_v_real = [], [], [], []
+        type_index = 'u'
         while not COORD.should_stop() and GLOBAL_EP < MAX_GLOBAL_EP:
             s = self.env.reset()
             start_prob = []
@@ -170,6 +171,13 @@ class Worker(object):
                 # if self.name == 'W_0':
                 a, last_prob = self.AC.choose_action(s)
                 s_, r, done, info = self.env.step(a)
+
+                if r == 10:
+                    type_index = 'g'
+                elif r == -10:
+                    type_index = 'c'
+                else:
+                    type_index = 'u'
 
                 if step_in_ep == 0:
                     start_prob = last_prob[0]
@@ -187,7 +195,7 @@ class Worker(object):
 
             buffer_v_target = self.process_ep(buffer_r)
 
-            self.save_buffer(buffer_s, buffer_a, buffer_r, buffer_v_target)                
+            self.save_buffer(buffer_s, buffer_a, buffer_r, buffer_v_target, type_index)                
 
             batch_v_real.extend(buffer_v_target)
             batch_s.extend(buffer_s)
@@ -224,16 +232,16 @@ class Worker(object):
 
             # self.AC.pull_global()
 
-    def save_buffer(self, buffer_s, buffer_a, buffer_r, buffer_v_target):
+    def save_buffer(self, buffer_s, buffer_a, buffer_r, buffer_v_target, type_index):
         global ep_count_g, ep_count_c, ep_count_u
         save_batch = [buffer_s, buffer_a, buffer_r, buffer_v_target]
 
-        if buffer_r[-1] == 10:
+        if type_index == 'g':
             file_name = './batch/batch_goal/' + str(ep_count_g) + '.pkl'
             with open(file_name, 'wb') as f:
                 pickle.dump(save_batch, f)
             ep_count_g += 1
-        elif buffer_r[-1] == -10:
+        elif type_index == 'c':
             file_name = './batch/batch_collision/' + str(ep_count_c) + '.pkl'
             with open(file_name, 'wb') as f:
                 pickle.dump(save_batch, f)
