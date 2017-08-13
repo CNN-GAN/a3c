@@ -8,18 +8,19 @@ import shutil
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import math
+import pickle
 
 load_model = True
 LOG_DIR = './data/log'
 N_WORKERS = 4 #multiprocessing.cpu_count()
 print ('cpu: ', multiprocessing.cpu_count())
 MAX_GLOBAL_EP = 10000
-MAX_STEP_EP = 50
-BATCH_SIZE = 100
+MAX_STEP_EP = 150
+BATCH_SIZE = 40
 GLOBAL_NET_SCOPE = 'Global_Net'
-GAMMA = 0.99
+GAMMA = 0.95
 ENTROPY_BETA = 0.001
-LR_A = 0.01    # learning rate for actor
+LR_A = 0.001    # learning rate for actor
 LR_C = 0.01    # learning rate for critic
 GLOBAL_EP = 0
 
@@ -27,7 +28,6 @@ N_S = env_hlc.observation_space
 N_A = env_hlc.action_space
 
 v_img = np.zeros((100, 100), np.float32)
-
 
 class ACNet(object):
     def __init__(self, scope, globalAC=None):
@@ -100,20 +100,21 @@ class ACNet(object):
             # laser_fc1 = tf.layers.dense(inputs=laser_reshape, units=90, activation=tf.nn.relu6, name = 'laser_fc1')
             # laser_fc2 = tf.layers.dense(inputs=laser_fc1, units=45, activation=tf.nn.relu6, name = 'laser_fc2')
 
-            target_reshape = tf.reshape(self.s,shape=[-1, 2]) 
-            target_fc = tf.layers.dense(inputs=target_reshape, units=32, activation=tf.nn.relu6, name = 'target_fc1')
+            # target_reshape = tf.reshape(self.s,shape=[-1, 2]) 
+            # target_fc = tf.layers.dense(inputs=target_reshape, units=32, activation=tf.nn.relu6, name = 'target_fc1')
             # path_fc2 = tf.layers.dense(inputs=path_fc, units=32, activation=tf.nn.relu, name = 'target_fc2')
 
             # concat laser and target
             # concat_feature = tf.concat([conv_fc, target_reshape], 1, name = 'concat')
             # concat_fc = tf.layers.dense(inputs=conv_fc, units=128, activation=tf.nn.relu, name = 'concat_fc1')
+            feature = tf.layers.dense(inputs=self.s, units=100, activation=tf.nn.relu, name = 'concat_fc1')
 
         with tf.variable_scope('actor'):
             # l_a = tf.layers.dense(target_fc, 32, tf.nn.relu6, kernel_initializer=w_init, name='actor_fc')
-            a_prob = tf.layers.dense(target_fc, N_A, tf.nn.softmax, kernel_initializer=w_init, name='actor_prob')
+            a_prob = tf.layers.dense(feature, N_A, tf.nn.softmax, kernel_initializer=w_init, name='actor_prob')
         with tf.variable_scope('critic'):
             # l_c = tf.layers.dense(target_fc, 32, tf.nn.relu6, kernel_initializer=w_init, name='critic_fc')
-            v = tf.layers.dense(target_fc, 1, kernel_initializer=w_init, name='critic_value')  # state value
+            v = tf.layers.dense(feature, 1, kernel_initializer=w_init, name='critic_value')  # state value
         return a_prob, v
 
     def update_global(self, feed_dict):  # run by a local
@@ -135,6 +136,8 @@ class Worker(object):
         self.env = env #gym.make(GAME).unwrapped
         self.name = name
         self.AC = ACNet(name, globalAC)
+        self.saver = saver
+        self.summary_writer = summary_writer
 
         # if self.name == 'W_0':
         #     plt.ion() # enable interactivity
@@ -151,42 +154,24 @@ class Worker(object):
 
     def work(self):
         global GLOBAL_EP, MAX_STEP_EP
-        total_step = 1
-        max_step = 3
+        self.AC.pull_global()
         buffer_s, buffer_a, buffer_r, buffer_r_real = [], [], [], []
         batch_s, batch_a, batch_r, batch_v_real = [], [], [], []
         while not COORD.should_stop() and GLOBAL_EP < MAX_GLOBAL_EP:
             s = self.env.reset()
-            ep_r = 0
-            step_in_ep = 0
-            while step_in_ep < MAX_STEP_EP:
+            start_prob = []
+            last_prob = []
+            for step_in_ep in range(MAX_STEP_EP):
+            # while step_in_ep < MAX_STEP_EP:
                 # if self.name == 'W_0':
-                #     self.env.render()
-                a, prob = self.AC.choose_action(s)
+                a, last_prob = self.AC.choose_action(s)
                 s_, r, done, info = self.env.step(a)
-                
-                # if self.name == 'W_0':
-                #     robot_loc = env.get_robot_location()
-                #     row = 100 - int((robot_loc[1] + 2.5)*20)
-                #     col = int((robot_loc[0] + 2.5)*20)
-                #     v_img[row, col] = value
 
-                #     min_v = v_img.min()
-                #     max_v = v_img.max()
-                #     scale = abs(max_v - min_v)
-                #     img = (v_img - min_v)/scale * 255
-                #     plt.clf()
-                #     plt.imshow(img,cmap='gray')
-                #     print (min_v, max_v, row, col)
+                if step_in_ep == 0:
+                    start_prob = last_prob[0]
 
-                # print (a, r, prob)
-                # if self.name == 'W_0':
-                    # cv2.circle(v_img, (row,col), )
-                #     plt.clf()
-                #     plt.plot(prob[0])
-                # plt.pause(0.001)
-
-                ep_r += r
+                if step_in_ep == MAX_STEP_EP-1:
+                    r = r + GAMMA * SESS.run(self.AC.v, {self.AC.s: s_[np.newaxis, :]})[0, 0]
 
                 buffer_s.append(s)
                 buffer_a.append(a)
@@ -195,8 +180,6 @@ class Worker(object):
                 if done:
                     break
                 s = s_
-                total_step += 1
-                step_in_ep += 1
 
             buffer_v_target = self.process_ep(buffer_r)
 
@@ -206,15 +189,17 @@ class Worker(object):
             batch_r.extend(buffer_r)
             buffer_s, buffer_a, buffer_r, buffer_r_real = [], [], [], []
 
-            # print (len(batch_s), len(batch_a), len(batch_v_real))
             mean_reward = np.mean(batch_r)
             mean_return = np.mean(batch_v_real)
-            
-            GLOBAL_EP += 1
-            # if(GLOBAL_EP % 10 == 1):
-            #     max_step += 1
+            # GLOBAL_EP += 1
+
+            save_batch = [batch_s, batch_a, batch_v_real]
+            file_name = './batch/' + str(GLOBAL_EP) + '.pkl'
+            with open(file_name, 'wb') as f:
+                pickle.dump(save_batch, f)
 
             if (len(batch_s) > BATCH_SIZE):
+                GLOBAL_EP += 1
                 batch_s, batch_a, batch_v_real = np.vstack(batch_s), np.array(batch_a), np.vstack(batch_v_real)
                 feed_dict = {
                     self.AC.s: batch_s,
@@ -222,38 +207,61 @@ class Worker(object):
                     self.AC.v_target: batch_v_real,
                 }
                 v, c_loss, a_loss = self.AC.update_global(feed_dict)
+                self.AC.pull_global()
 
-                print(batch_v_real[-1][0], v[-1][0], c_loss, a_loss)
-                # sub = batch_v_real - v
-                # sq = sub*sub
-                # sq = sq.flatten()
-                # mean_sq = np.mean(sq)
-                # sum_sq = np.sum(mean_sq)
-                # print(sum_sq/2)
+                # print(batch_v_real[-1][0], v[-1][0], c_loss, a_loss)
 
-                diff = abs(batch_v_real[-1][0] - v[-1][0])
+                a_, prob = self.AC.choose_action(batch_s[-1])
+
+                # if self.name == 'W_0':
+                print(batch_a[-1], a_, 'predict_v:', v[-1], 'real_v:', batch_v_real[-1], batch_r[-1])
+                print (last_prob)
+                print (prob - start_prob)
+
 
                 batch_s, batch_a, batch_r, batch_v_real = [], [], [], []
-                saver.save(SESS, './data/model.cptk') 
 
-                # print (self.name, "updated", mean_reward)
-                # if self.name == 'W_0':
-                summary = tf.Summary()
+                self.write_summary(mean_reward, mean_return, c_loss, a_loss)
 
-                summary.value.add(tag='Perf/Avg reward', simple_value=float(mean_reward))
-                summary.value.add(tag='Perf/Avg return', simple_value=float(mean_return))
-                summary.value.add(tag='Loss/V loss', simple_value=float(c_loss))
-                summary.value.add(tag='Loss/A loss', simple_value=float(a_loss))
+            # self.AC.pull_global()
+
+    def debug_function(prob):
+        # if self.name == 'W_0':
+        #     robot_loc = env.get_robot_location()
+        #     row = 100 - int((robot_loc[1] + 2.5)*20)
+        #     col = int((robot_loc[0] + 2.5)*20)
+        #     v_img[row, col] = value
+
+        #     min_v = v_img.min()
+        #     max_v = v_img.max()
+        #     scale = abs(max_v - min_v)
+        #     img = (v_img - min_v)/scale * 255
+        #     plt.clf()
+        #     plt.imshow(img,cmap='gray')
+        #     print (min_v, max_v, row, col)
+
+        # print (a, r, prob)
+        # if self.name == 'W_0':
+            # cv2.circle(v_img, (row,col), )
+        #     plt.clf()
+            plt.plot(prob[0])
+        #     plt.pause(0.001)
+
+
+    def write_summary(self, mean_reward, mean_return, c_loss, a_loss):
+        self.saver.save(SESS, './data/model.cptk') 
+        # if self.name == 'W_0':
+        summary = tf.Summary()
+
+        summary.value.add(tag='Perf/Avg reward', simple_value=float(mean_reward))
+        summary.value.add(tag='Perf/Avg return', simple_value=float(mean_return))
+        summary.value.add(tag='Loss/V loss', simple_value=float(c_loss))
+        summary.value.add(tag='Loss/A loss', simple_value=float(a_loss))
                 
-                summary.value.add(tag='Loss/d Terminal', simple_value=float(diff))
-                
-                # summary.value.add(tag='Losses/loss', simple_value=float(loss))
-                # summary.histogram.add(tag='Losses/grad', simple_value=float(grad))
-                summary_writer.add_summary(summary, GLOBAL_EP)
-                summary_writer.flush()  
-
-            self.AC.pull_global()
-
+        # summary.value.add(tag='Losses/loss', simple_value=float(loss))
+        # summary.histogram.add(tag='Losses/start_prob', simple_value=float(start_prob))
+        summary_writer.add_summary(summary, GLOBAL_EP)
+        summary_writer.flush()  
 
 if __name__ == "__main__":
     SESS = tf.Session()
