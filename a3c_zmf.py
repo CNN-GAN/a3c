@@ -24,9 +24,15 @@ LR_A = 0.001    # learning rate for actor
 LR_C = 0.01    # learning rate for critic
 GLOBAL_EP = 2400
 
-ep_count_g = 0
-ep_count_c = 0
-ep_count_u = 0
+
+batch_dirs = ['./batch/batch_collision/', './batch/batch_goal/', './batch/batch_unfinish/']
+list = os.listdir(batch_dirs[0]) 
+ep_count_c = len(list)
+list = os.listdir(batch_dirs[1]) 
+ep_count_g = len(list)
+list = os.listdir(batch_dirs[2]) 
+ep_count_u = len(list)
+
 
 N_S = env_hlc.observation_space
 N_A = env_hlc.action_space
