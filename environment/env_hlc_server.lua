@@ -16,7 +16,7 @@ end
 function step(inInts,inFloats,inStrings,inBuffer)
     print (#inFloats)
     current_pose, res = do_action(robot_hd, inFloats)
-    -- sample_obstacle_position()
+    sample_obstacle_position(obs_hds, #obs_hds)
 
     return {}, current_pose, {}, res
 end
@@ -128,8 +128,8 @@ function sample_obstacle_position(obs_hds, num)
     for i=1, num, 1 do
         obs_pos = simGetObjectPosition(obs_hds[i], -1)
 
-        obs_pos[1] = (math.random()-0.5)*0.2 + obs_pos[1]
-        obs_pos[2] = (math.random()-0.5)*0.2 + obs_pos[2]
+        obs_pos[1] = (math.random()-0.5)*0.1 + obs_pos[1]
+        obs_pos[2] = (math.random()-0.5)*0.1 + obs_pos[2]
 
         local bound = 2.5
         if obs_pos[1] > bound then
@@ -217,7 +217,7 @@ function sample_init(level)
         target_pos[2] = (math.random() - 0.5) * max_r
         target_pos[3] = 0
 
-        sample_obstacle_position(obs_hds, #obs_hds)
+        -- sample_obstacle_position(obs_hds, #obs_hds)
     else        -- 2 meter around the robot with random obstacle every time
         -- sample initial robot pose
         robot_pos[1] = (math.random() - 0.5) * 4

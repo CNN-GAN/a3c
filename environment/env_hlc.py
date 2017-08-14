@@ -35,7 +35,7 @@ class Simu_env():
         self.path_used = 1
         self.step_inep = 0
         self.object_num = 0
-        self.game_level = 2
+        self.game_level = 3
         self.succed_time = 0
         self.pass_ep = 1
         self.ep_reap_time = 0
@@ -118,9 +118,9 @@ class Simu_env():
         if dist >= self.dist_pre:
             reward -= 0.1
 
+        self.dist_pre = dist
         # diff = self.dist_pre - dist
         # reward += diff * 20
-        # self.dist_pre = dist
 
         if dist < 0.2:              # when reach to the target
             is_finish = True
@@ -139,6 +139,7 @@ class Simu_env():
             self.pass_ep = -1
 
         # print (reward, diff, self.dist_pre)
+        # print(reward)
         return reward, is_finish
 
 
