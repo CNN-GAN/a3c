@@ -12,7 +12,7 @@ import pickle
 
 load_model = True
 LOG_DIR = './data/log'
-N_WORKERS = 1 #multiprocessing.cpu_count()
+N_WORKERS = 4 #multiprocessing.cpu_count()
 print ('cpu: ', multiprocessing.cpu_count())
 MAX_GLOBAL_EP = 10000
 MAX_STEP_EP = 100
@@ -101,12 +101,18 @@ class ACNet(object):
             # # process laser
             laser_reshape = tf.reshape(self.laser,shape=[-1, 180, 1]) 
             conv1 = tf.layers.conv1d(   inputs=laser_reshape,
-                                        filters=32,
-                                        kernel_size=5,
+                                        filters=16,
+                                        kernel_size=8,
                                         padding="valid",
                                         activation=tf.nn.relu6,
                                         name = 'laser_conv1')
-            conv_flat = tf.contrib.layers.flatten(conv1)
+            conv2 = tf.layers.conv1d(   inputs=conv1,
+                                        filters=32,
+                                        kernel_size=4,
+                                        padding="valid",
+                                        activation=tf.nn.relu6,
+                                        name = 'laser_conv2')     
+            conv_flat = tf.contrib.layers.flatten(conv2)
             conv_fc = tf.layers.dense(inputs=conv_flat, units=200, activation=tf.nn.relu6, name = 'laser_conv_fc')
 
             # # process laser
