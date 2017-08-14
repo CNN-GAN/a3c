@@ -46,7 +46,7 @@ class ACNet(object):
             with tf.variable_scope(scope):
                 self.s = tf.placeholder(tf.float32, [None, N_S], 'S')
                 self._build_net()
-                self.params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+                self.params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope )
                 # self.a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/actor')
                 # self.c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic')
         else:   # local net, calculate losses
@@ -73,7 +73,7 @@ class ACNet(object):
                     self.loss = self.c_loss * 0.5 + self.a_loss
 
                 with tf.name_scope('local_grad'):
-                    self.params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+                    self.params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope )
                     self.grads = tf.gradients(self.loss, self.params)
 
                     # self.a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/actor')
@@ -146,7 +146,7 @@ class ACNet(object):
         return v, c_loss
 
     def pull_global(self):  # run by a local
-        SESS.run([self.pull_a_params_op, self.pull_c_params_op])
+        SESS.run(self.pull_params_op)
 
     def choose_action(self, s):  # run by a local
         prob_weights = SESS.run(self.a_prob, feed_dict={self.s: s[np.newaxis, :]})
